@@ -1,16 +1,18 @@
-import Foundation
+import SwiftUI
 
 /// Date helpers for the alarm list.
 enum DateUtil {
-    /// Section heading: Today / Tomorrow, otherwise a fully localized "Friday, September 26".
-    static func heading(for day: Date, calendar: Calendar = .current) -> String {
+    /// Section heading: Today / Tomorrow, otherwise a fully localized
+    /// "Friday, September 26". Returns Text so SwiftUI resolves the keys with
+    /// the environment locale (in-app language override).
+    static func heading(for day: Date, calendar: Calendar = .current) -> Text {
         let today = calendar.startOfDay(for: Date())
         let target = calendar.startOfDay(for: day)
-        if target == today { return String(localized: "Today") }
+        if target == today { return Text("Today") }
         if let tomorrow = calendar.date(byAdding: .day, value: 1, to: today), target == tomorrow {
-            return String(localized: "Tomorrow")
+            return Text("Tomorrow")
         }
-        return target.formatted(.dateTime.weekday(.wide).month(.wide).day())
+        return Text(target, format: .dateTime.weekday(.wide).month(.wide).day())
     }
 
     /// The next occurrence of a picked time-of-day: today if still ahead, otherwise tomorrow.

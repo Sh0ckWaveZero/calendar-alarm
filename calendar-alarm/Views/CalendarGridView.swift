@@ -8,16 +8,20 @@ enum CalendarDisplayMode {
 
 /// Static header above the paging calendar: title, Today, and chevrons.
 struct CalendarHeaderView: View {
-    let title: String
+    /// Resolved with the environment locale (in-app language override) — pass
+    /// the Text straight through, never a pre-formatted String.
+    let title: Text
     var onToday: () -> Void
     var onPrevious: () -> Void
     var onNext: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
-            Text(title)
+            title
                 .font(.headline)
                 .foregroundStyle(Theme.text)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
             Spacer()
             Button(action: onToday) {
                 Text("Today")
@@ -49,17 +53,19 @@ struct CalendarHeaderView: View {
     }
 
     /// "September 2569 BE" for months, "27 Sep – 3 Oct" for a week strip.
-    static func title(for mode: CalendarDisplayMode, cursor: Date, calendar: Calendar = .current) -> String {
+    /// Built from Text(date, format:) so the environment locale applies.
+    static func title(for mode: CalendarDisplayMode, cursor: Date, calendar: Calendar = .current) -> Text {
         switch mode {
         case .month:
-            return cursor.formatted(.dateTime.month(.wide).year())
+            return Text(cursor, format: .dateTime.month(.wide).year())
         case .week:
             let days = CalendarGrid.weekDays(for: cursor, calendar: calendar)
-            guard let first = days.first, let last = days.last else { return "" }
+            guard let first = days.first, let last = days.last else { return Text("") }
+            let day: Date.FormatStyle = .dateTime.month(.abbreviated).day()
             if calendar.isDate(first, equalTo: last, toGranularity: .month) {
-                return "\(first.formatted(.dateTime.month(.abbreviated).day())) – \(last.formatted(.dateTime.day()))"
+                return Text(first, format: day) + Text(" – ") + Text(last, format: .dateTime.day())
             }
-            return "\(first.formatted(.dateTime.month(.abbreviated).day())) – \(last.formatted(.dateTime.month(.abbreviated).day()))"
+            return Text(first, format: day) + Text(" – ") + Text(last, format: day)
         }
     }
 }
@@ -74,8 +80,23 @@ struct CalendarGridView: View {
     let alarmDays: Set<Date>
     let holidayDays: Set<Date>
     @Binding var selection: Date?
+    /// Reports this page's laid-out height so the pager can size itself exactly.
+    var onPageHeightChanged: (CGFloat) -> Void = { _ in }
 
-    private let calendar = Calendar.current
+    private var calendar: Calendar {
+        // Uses the environment locale so weekday symbols, first weekday, and
+        // day names follow the in-app language override.
+        var localized = Calendar(identifier: .gregorian)
+        localized.locale = locale
+        return localized
+    }
+
+    @Environment(\.locale) private var locale
+
+    // Scale with the user's Dynamic Type so the page never clips.
+    @ScaledMetric(relativeTo: .caption2) private var symbolHeight: CGFloat = 16
+    @ScaledMetric(relativeTo: .subheadline) private var cellSize: CGFloat = 32
+
     private var columns: [GridItem] { Array(repeating: GridItem(.flexible()), count: 7) }
 
     private var gridRows: [[Date]] {
@@ -91,6 +112,9 @@ struct CalendarGridView: View {
                     Text(symbol)
                         .font(.caption2.weight(.medium))
                         .foregroundStyle(Theme.subtext)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                        .frame(height: symbolHeight)
                 }
             }
 
@@ -104,6 +128,11 @@ struct CalendarGridView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 4)
+        .onGeometryChange(for: CGFloat.self) { proxy in
+            proxy.size.height
+        } action: { height in
+            onPageHeightChanged(height)
+        }
     }
 
     @ViewBuilder
@@ -123,7 +152,7 @@ struct CalendarGridView: View {
                     .font(.subheadline.monospacedDigit())
                     .fontWeight(isToday ? .bold : .regular)
                     .foregroundStyle(isSelected ? Color.white : (inScope ? Theme.text : Theme.subtext.opacity(0.5)))
-                    .frame(width: 32, height: 32)
+                    .frame(width: cellSize, height: cellSize)
                     .background {
                         if isSelected {
                             Circle().fill(Theme.accent)

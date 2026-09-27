@@ -10,12 +10,25 @@ struct AlarmsView: View {
     @State private var displayMode: DisplayMode = .list
     @State private var editingItem: AlarmItem?
     @State private var showAddSheet = false
+    @State private var showSettings = false
     @State private var addTargetDay: Date?
     @State private var addSeedTime: Date?
     @State private var selectedDay: Date? = Calendar.current.startOfDay(for: Date())
     @State private var monthCursor = Date()
     @State private var weekCursor = Date()
     @State private var navDirection = 1
+    @AppStorage("addButtonSide") private var addButtonSide = "left"
+
+    // Must match CalendarGridView's scaled metrics — they seed the pager height,
+    // which then self-corrects from the page's measured layout height.
+    @ScaledMetric(relativeTo: .subheadline) private var calendarCellSize: CGFloat = 32
+    @ScaledMetric(relativeTo: .caption2) private var calendarSymbolHeight: CGFloat = 16
+    @State private var monthPageHeight: CGFloat = 0
+    @State private var weekPageHeight: CGFloat = 0
+
+    private var addButtonAlignment: Alignment {
+        addButtonSide == "right" ? .bottomTrailing : .bottomLeading
+    }
 
     var body: some View {
         NavigationStack {
@@ -39,6 +52,28 @@ struct AlarmsView: View {
             }
             .background(Theme.background)
             .toolbar(.hidden, for: .navigationBar)
+            .overlay(alignment: addButtonAlignment) {
+                // Floating add button — the header hosts Settings instead.
+                Button {
+                    prepareAddTargetDay()
+                    showAddSheet = true
+                } label: {
+                    Image(systemName: "plus")
+                        .font(.title2.weight(.semibold))
+                        .foregroundStyle(.white)
+                        .frame(width: 56, height: 56)
+                        .background(Circle().fill(Theme.accent))
+                        .shadow(color: .black.opacity(0.18), radius: 8, y: 3)
+                }
+                .padding(.leading, addButtonSide == "left" ? 20 : 0)
+                .padding(.trailing, addButtonSide == "right" ? 20 : 0)
+                .padding(.bottom, 28)
+                .accessibilityLabel(Text("New Alarm"))
+            }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsSheet()
+                .presentationDetents([.medium, .large])
         }
         .sheet(item: $editingItem) { item in
             AlarmEditSheet(item: item, viewModel: viewModel)
@@ -74,8 +109,8 @@ struct AlarmsView: View {
         }
     }
 
-    /// Large title with the add button on the same line (iOS 26 pushes toolbar
-    /// items above the title, so the header is drawn here instead).
+    /// Large title with the Settings button on the same line (iOS 26 pushes
+    /// toolbar items above the title, so the header is drawn here instead).
     private var headerRow: some View {
         HStack {
             Text("Alarms")
@@ -83,16 +118,15 @@ struct AlarmsView: View {
                 .foregroundStyle(Theme.text)
             Spacer()
             Button {
-                prepareAddTargetDay()
-                showAddSheet = true
+                showSettings = true
             } label: {
-                Image(systemName: "plus")
+                Image(systemName: "gearshape")
                     .font(.title3.weight(.medium))
                     .foregroundStyle(Theme.text)
                     .frame(width: 42, height: 42)
                     .background(Circle().fill(Theme.card))
             }
-            .accessibilityLabel(Text("New Alarm"))
+            .accessibilityLabel(Text("Settings"))
         }
         .padding(.horizontal, 16)
         .padding(.top, 8)
@@ -158,7 +192,11 @@ struct AlarmsView: View {
                 .background(Theme.background)
         } else if viewModel.sections.isEmpty {
             ContentUnavailableView {
-                Label(String(localized: "No alarms yet"), systemImage: "alarm")
+                Label {
+                    Text("No alarms yet")
+                } icon: {
+                    Image(systemName: "alarm")
+                }
             } description: {
                 Text("Tap + to add an alarm.")
             }
@@ -210,7 +248,7 @@ struct AlarmsView: View {
                         }
                     }
                 } header: {
-                    Text(DateUtil.heading(for: day))
+                    DateUtil.heading(for: day)
                 } footer: {
                     if items.isEmpty && dayHolidays.isEmpty {
                         Text("No alarms on this day")
@@ -289,18 +327,17 @@ struct AlarmsView: View {
     /// Swipeable calendar pages (±1 year of months / ±26 weeks). The TabView's
     /// selection drives the cursor, so the grid tracks the finger during the
     /// swipe; the selected day follows the visible page via onChange.
-    /// The pager gets an explicit height — .page TabViews otherwise claim all
-    /// available space, which made the one-row week strip float in the middle.
+    /// Height: seeded from scaled metrics (the VStack has a 10pt gap after the
+    /// symbols AND between every row grid — 1 row of day grids per month page),
+    /// then corrected to the page's actually measured height.
     @ViewBuilder
     private func pagedCalendar(mode: DisplayMode) -> some View {
         let calendar = Calendar.current
         let holidayDays = Set(viewModel.holidays.map(\.date))
-        // Symbols row (~16) + spacing 10 + rows of 40pt (32 day frame + 3 + 5 dots)
-        // + 6pt between rows + 8pt vertical padding.
-        let pagerHeight: CGFloat = {
-            let rows: CGFloat = mode == .month ? 6 : 1
-            return 16 + 10 + rows * 40 + (rows - 1) * 6 + 8
-        }()
+        let rows: CGFloat = mode == .month ? 6 : 1
+        let measured = mode == .month ? monthPageHeight : weekPageHeight
+        let fallback = calendarSymbolHeight + rows * (calendarCellSize + 8) + rows * 10 + 8
+        let pagerHeight = measured > 0 ? measured : fallback
         if mode == .month {
             let anchors = Self.monthAnchors(around: Date(), count: 25, calendar: calendar)
             TabView(selection: Binding(
@@ -313,7 +350,8 @@ struct AlarmsView: View {
                         cursor: anchor,
                         alarmDays: viewModel.daysWithAlarms,
                         holidayDays: holidayDays,
-                        selection: $selectedDay
+                        selection: $selectedDay,
+                        onPageHeightChanged: { monthPageHeight = $0 }
                     )
                     .tag(anchor)
                 }
@@ -338,7 +376,8 @@ struct AlarmsView: View {
                         cursor: anchor,
                         alarmDays: viewModel.daysWithAlarms,
                         holidayDays: holidayDays,
-                        selection: $selectedDay
+                        selection: $selectedDay,
+                        onPageHeightChanged: { weekPageHeight = $0 }
                     )
                     .tag(anchor)
                 }
@@ -425,7 +464,7 @@ struct AlarmsView: View {
                         }
                     }
                 } header: {
-                    Text(DateUtil.heading(for: section.dayStart))
+                    DateUtil.heading(for: section.dayStart)
                 }
             }
         }
@@ -467,6 +506,9 @@ struct AlarmsView: View {
         if arguments.contains("-demoAddSheet") {
             showAddSheet = true
         }
+        if arguments.contains("-demoSettings") {
+            showSettings = true
+        }
     }
     #endif
 }
@@ -477,7 +519,7 @@ struct AlarmRow: View {
 
     var body: some View {
         HStack {
-            Text(item.time.formatted(date: .omitted, time: .shortened))
+            Text(item.time, format: .dateTime.hour().minute())
                 .font(.system(size: 28, weight: .semibold, design: .rounded))
                 .monospacedDigit()
                 .foregroundStyle(Theme.text)
