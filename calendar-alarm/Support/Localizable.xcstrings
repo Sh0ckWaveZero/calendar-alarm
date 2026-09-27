@@ -23,6 +23,72 @@
         }
       }
     },
+    "Alarm set for %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตั้งปลุก %@ แล้ว"
+          }
+        }
+      }
+    },
+    "Create a new alarm at a time you say.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สร้างการปลุกใหม่ตามเวลาที่พูด"
+          }
+        }
+      }
+    },
+    "Open the alarm list.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดรายการการปลุก"
+          }
+        }
+      }
+    },
+    "Set Alarm": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ตั้งปลุก"
+          }
+        }
+      }
+    },
+    "Open Alarms": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เปิดการปลุก"
+          }
+        }
+      }
+    },
+    "What time should the alarm be for?": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "จะตั้งปลุกกี่โมง?"
+          }
+        }
+      }
+    },
     "Left": {
       "extractionState": "manual",
       "localizations": {
