@@ -12,12 +12,14 @@ struct AlarmSection: Identifiable {
 @MainActor
 final class AlarmsViewModel: ObservableObject {
     @Published private(set) var sections: [AlarmSection] = []
+    @Published private(set) var daysWithAlarms: Set<Date> = []
     @Published var isLoading = true
     @Published var saveErrorMessage: String?
     @Published var alarmPermissionDenied = false
 
     let scheduler: AlarmScheduling
     private let context: ModelContext
+    private var upcomingItems: [AlarmItem] = []
 
     init(context: ModelContext? = nil, scheduler: AlarmScheduling? = nil) {
         self.context = context ?? Persistence.context
@@ -62,6 +64,8 @@ final class AlarmsViewModel: ObservableObject {
     }
 
     private func reloadSections(from upcoming: [AlarmItem]) {
+        upcomingItems = upcoming
+        daysWithAlarms = Set(upcoming.map { Calendar.current.startOfDay(for: $0.time) })
         let grouped = Dictionary(grouping: upcoming) { item in
             Calendar.current.startOfDay(for: item.time)
         }
@@ -81,11 +85,26 @@ final class AlarmsViewModel: ObservableObject {
         return (try? context.fetch(descriptor)) ?? []
     }
 
+    /// Alarms firing on the given day, oldest first (for the calendar day list).
+    func items(on day: Date) -> [AlarmItem] {
+        let target = Calendar.current.startOfDay(for: day)
+        return upcomingItems
+            .filter { Calendar.current.isDate($0.time, inSameDayAs: target) }
+            .sorted { $0.time < $1.time }
+    }
+
     // MARK: - Adding / editing
 
-    /// Creates an alarm that fires at the next occurrence of the picked time-of-day.
-    func addAlarm(timeOfDay: Date, soundName: String? = nil) async {
-        let item = AlarmItem(time: DateUtil.nextOccurrence(of: timeOfDay), soundName: soundName)
+    /// Creates an alarm: at the next occurrence of the picked time-of-day, or — when
+    /// a calendar day is selected — at that exact day (only accepted for today onward).
+    func addAlarm(timeOfDay: Date, day: Date? = nil, soundName: String? = nil) async {
+        let fireDate: Date
+        if let day, Calendar.current.startOfDay(for: day) >= Calendar.current.startOfDay(for: Date()) {
+            fireDate = DateUtil.combine(day: day, timeOfDay: timeOfDay)
+        } else {
+            fireDate = DateUtil.nextOccurrence(of: timeOfDay)
+        }
+        let item = AlarmItem(time: fireDate, soundName: soundName)
         context.insert(item)
         try? context.save()
         await schedule(item)

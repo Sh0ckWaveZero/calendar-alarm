@@ -210,6 +210,61 @@
         }
       }
     },
+    "Date": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "วันที่"
+          }
+        }
+      }
+    },
+    "List": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "รายการ"
+          }
+        }
+      }
+    },
+    "Month": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เดือน"
+          }
+        }
+      }
+    },
+    "Week": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "สัปดาห์"
+          }
+        }
+      }
+    },
+    "No alarms on this day": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่มีการปลุกในวันนี้"
+          }
+        }
+      }
+    },
     "Sound": {
       "extractionState": "manual",
       "localizations": {

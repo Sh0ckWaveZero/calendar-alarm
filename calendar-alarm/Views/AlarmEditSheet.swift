@@ -4,22 +4,35 @@ import SwiftUI
 /// Uses standard iOS chrome: Cancel/Save in the nav bar, Clock-style delete button.
 struct AlarmEditSheet: View {
     let item: AlarmItem?
+    /// When adding from the calendar: the selected day the new alarm fires on.
+    var day: Date? = nil
     @ObservedObject var viewModel: AlarmsViewModel
     @Environment(\.dismiss) private var dismiss
 
     @State private var timeOfDay: Date = Date()
+    @State private var targetDay: Date = Calendar.current.startOfDay(for: Date())
     @State private var soundName: String?
     @State private var isLoaded = false
 
-    /// For editing, the alarm keeps its day; the candidate must still be in the future.
+    /// Editing keeps its day; adding uses the picked day (seeded from the
+    /// calendar selection, otherwise today).
     private var resolvedDate: Date {
         if let item {
             return DateUtil.combine(day: item.time, timeOfDay: timeOfDay)
         }
-        return DateUtil.nextOccurrence(of: timeOfDay)
+        return DateUtil.combine(day: targetDay, timeOfDay: timeOfDay)
     }
 
     private var isPassed: Bool { resolvedDate <= Date() }
+
+    /// When the fire day is today, past times are not selectable on the wheel.
+    private var timeRange: ClosedRange<Date> {
+        let day = item?.time ?? targetDay
+        if Calendar.current.isDateInToday(day) {
+            return Date()...Date.distantFuture
+        }
+        return Date.distantPast...Date.distantFuture
+    }
 
     var body: some View {
         NavigationStack {
@@ -27,10 +40,24 @@ struct AlarmEditSheet: View {
                 DatePicker(
                     "",
                     selection: $timeOfDay,
+                    in: timeRange,
                     displayedComponents: [.hourAndMinute]
                 )
                 .datePickerStyle(.wheel)
                 .labelsHidden()
+                .onChange(of: targetDay) { _, newDay in
+                    // Switching back to today while a past time is picked bumps
+                    // the wheel to the earliest valid time.
+                    if Calendar.current.isDateInToday(newDay),
+                       DateUtil.combine(day: newDay, timeOfDay: timeOfDay) <= Date() {
+                        timeOfDay = Date().addingTimeInterval(120)
+                    }
+                }
+
+                if item == nil {
+                    dayPicker
+                        .padding(.horizontal, 20)
+                }
 
                 soundPicker
                     .padding(.horizontal, 20)
@@ -67,7 +94,7 @@ struct AlarmEditSheet: View {
                             if let item {
                                 await viewModel.updateAlarm(item, timeOfDay: timeOfDay, soundName: soundName)
                             } else {
-                                await viewModel.addAlarm(timeOfDay: timeOfDay, soundName: soundName)
+                                await viewModel.addAlarm(timeOfDay: timeOfDay, day: targetDay, soundName: soundName)
                             }
                             dismiss()
                         }
@@ -78,6 +105,27 @@ struct AlarmEditSheet: View {
             .onAppear(perform: seedValues)
         }
         .presentationDetents([.medium])
+    }
+
+    /// Picked fire day (new alarms only) — compact native date picker in a card row.
+    private var dayPicker: some View {
+        HStack {
+            Text("Date")
+                .foregroundStyle(Theme.text)
+            Spacer()
+            DatePicker(
+                "",
+                selection: $targetDay,
+                in: Calendar.current.startOfDay(for: Date())...,
+                displayedComponents: [.date]
+            )
+            .labelsHidden()
+            .tint(Theme.accent)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 6)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
     }
 
     private var soundPicker: some View {
@@ -108,6 +156,7 @@ struct AlarmEditSheet: View {
             soundName = item.soundName
         } else {
             timeOfDay = Date().addingTimeInterval(3600)
+            targetDay = Calendar.current.startOfDay(for: day ?? Date())
             soundName = nil
         }
     }

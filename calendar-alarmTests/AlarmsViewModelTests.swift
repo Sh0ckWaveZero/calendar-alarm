@@ -212,6 +212,54 @@ final class AlarmsViewModelTests: XCTestCase {
         XCTAssertEqual(viewModel.sections.first?.items.first?.id, item.id)
     }
 
+    // MARK: - Calendar day helpers
+
+    func testAddAlarmWithExplicitDayFiresOnThatDay() async throws {
+        let (container, viewModel, scheduler) = try makeWorld()
+        _ = container
+
+        let futureDay = Calendar.current.date(byAdding: .day, value: 5, to: Date())!
+        await viewModel.addAlarm(timeOfDay: dateAt(hour: 6, minute: 15), day: futureDay)
+
+        let fire = try XCTUnwrap(scheduler.scheduled.first?.fireDate)
+        XCTAssertEqual(Calendar.current.startOfDay(for: fire), Calendar.current.startOfDay(for: futureDay))
+        XCTAssertEqual(Calendar.current.component(.hour, from: fire), 6)
+        XCTAssertEqual(Calendar.current.component(.minute, from: fire), 15)
+    }
+
+    func testAddAlarmTodayWithPassedTimeSkipsScheduling() async throws {
+        let (container, viewModel, scheduler) = try makeWorld()
+        _ = container
+
+        let passed = Date().addingTimeInterval(-3600)
+        await viewModel.addAlarm(timeOfDay: passed, day: Calendar.current.startOfDay(for: Date()))
+
+        XCTAssertTrue(scheduler.scheduled.isEmpty)
+        let item = try XCTUnwrap(try container.mainContext.fetch(FetchDescriptor<AlarmItem>()).first)
+        XCTAssertNil(item.alarmId)
+    }
+
+    func testItemsOnDayFiltersAndSorts() async throws {
+        let (container, viewModel, scheduler) = try makeWorld()
+        _ = scheduler
+
+        let day = Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: 5, to: Date())!)
+        let evening = DateUtil.combine(day: day, timeOfDay: dateAt(hour: 22, minute: 0))
+        let morning = DateUtil.combine(day: day, timeOfDay: dateAt(hour: 8, minute: 0))
+        container.mainContext.insert(AlarmItem(time: evening, alarmId: UUID()))
+        container.mainContext.insert(AlarmItem(time: morning, alarmId: UUID()))
+        try container.mainContext.save()
+
+        await viewModel.load()
+
+        let onDay = viewModel.items(on: day)
+        XCTAssertEqual(onDay.count, 2)
+        XCTAssertEqual(onDay.first?.time, morning)
+        XCTAssertEqual(onDay.last?.time, evening)
+        XCTAssertEqual(viewModel.daysWithAlarms, [day])
+        XCTAssertTrue(viewModel.items(on: Calendar.current.date(byAdding: .day, value: 6, to: day)!).isEmpty)
+    }
+
     // MARK: - Helpers
 
     private func dateAt(hour: Int, minute: Int) -> Date {
