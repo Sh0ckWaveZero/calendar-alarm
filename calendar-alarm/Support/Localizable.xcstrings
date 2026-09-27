@@ -221,6 +221,72 @@
         }
       }
     },
+    "Alarm": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การปลุก"
+          }
+        }
+      }
+    },
+    "Holiday": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "วันหยุด"
+          }
+        }
+      }
+    },
+    "Holidays": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "วันหยุด"
+          }
+        }
+      }
+    },
+    "Next month": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เดือนถัดไป"
+          }
+        }
+      }
+    },
+    "Previous month": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เดือนก่อนหน้า"
+          }
+        }
+      }
+    },
+    "Tap a holiday to set an alarm for that day.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "แตะวันหยุดเพื่อตั้งปลุกในวันนั้น"
+          }
+        }
+      }
+    },
     "List": {
       "extractionState": "manual",
       "localizations": {

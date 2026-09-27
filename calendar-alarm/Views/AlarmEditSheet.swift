@@ -6,6 +6,8 @@ struct AlarmEditSheet: View {
     let item: AlarmItem?
     /// When adding from the calendar: the selected day the new alarm fires on.
     var day: Date? = nil
+    /// Seeds the time wheel (9:00 for holiday taps; otherwise an hour from now).
+    var seedTime: Date? = nil
     @ObservedObject var viewModel: AlarmsViewModel
     @Environment(\.dismiss) private var dismiss
 
@@ -155,7 +157,7 @@ struct AlarmEditSheet: View {
             timeOfDay = item.time
             soundName = item.soundName
         } else {
-            timeOfDay = Date().addingTimeInterval(3600)
+            timeOfDay = seedTime ?? Date().addingTimeInterval(3600)
             targetDay = Calendar.current.startOfDay(for: day ?? Date())
             soundName = nil
         }

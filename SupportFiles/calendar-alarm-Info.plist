@@ -24,6 +24,8 @@
 	<false/>
 	<key>NSAlarmKitUsageDescription</key>
 	<string>CalSync schedules alarms so you don't miss your calendar events.</string>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Shows holidays from your device calendars on the alarm calendar.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

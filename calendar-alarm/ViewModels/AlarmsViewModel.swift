@@ -13,17 +13,22 @@ struct AlarmSection: Identifiable {
 final class AlarmsViewModel: ObservableObject {
     @Published private(set) var sections: [AlarmSection] = []
     @Published private(set) var daysWithAlarms: Set<Date> = []
+    @Published private(set) var holidays: [HolidayEvent] = []
     @Published var isLoading = true
     @Published var saveErrorMessage: String?
     @Published var alarmPermissionDenied = false
 
     let scheduler: AlarmScheduling
     private let context: ModelContext
+    private let holidayService: HolidayService
     private var upcomingItems: [AlarmItem] = []
+    private var holidayWindow: DateInterval?
+    private var holidayLoadTask: Task<Void, Never>?
 
-    init(context: ModelContext? = nil, scheduler: AlarmScheduling? = nil) {
+    init(context: ModelContext? = nil, scheduler: AlarmScheduling? = nil, holidayService: HolidayService? = nil) {
         self.context = context ?? Persistence.context
         self.scheduler = scheduler ?? AlarmKitService.shared
+        self.holidayService = holidayService ?? HolidayService()
     }
 
     // MARK: - Loading
@@ -91,6 +96,32 @@ final class AlarmsViewModel: ObservableObject {
         return upcomingItems
             .filter { Calendar.current.isDate($0.time, inSameDayAs: target) }
             .sorted { $0.time < $1.time }
+    }
+
+    /// Holidays on the given day (for the calendar day list).
+    func holidays(on day: Date) -> [HolidayEvent] {
+        let target = Calendar.current.startOfDay(for: day)
+        return holidays.filter { Calendar.current.isDate($0.date, inSameDayAs: target) }
+    }
+
+    /// Fetches holidays covering the month before/after `cursor`; refetches only
+    /// when navigation moves outside the already-loaded window.
+    func loadHolidaysIfNeeded(around cursor: Date) {
+        let calendar = Calendar.current
+        guard let monthStart = calendar.dateInterval(of: .month, for: cursor)?.start,
+              let windowStart = calendar.date(byAdding: .month, value: -1, to: monthStart),
+              let windowEnd = calendar.date(byAdding: .month, value: 2, to: monthStart) else { return }
+        let window = DateInterval(start: windowStart, end: windowEnd)
+        if let holidayWindow, holidayWindow.contains(window.start), holidayWindow.contains(window.end) {
+            return
+        }
+        holidayWindow = window
+        holidayLoadTask?.cancel()
+        holidayLoadTask = Task { [weak self] in
+            let events = await self?.holidayService.holidays(in: window) ?? []
+            guard !Task.isCancelled, let self else { return }
+            self.holidays = events
+        }
     }
 
     // MARK: - Adding / editing
