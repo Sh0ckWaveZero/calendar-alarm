@@ -4,6 +4,26 @@ A minimal one-shot alarm app for iPhone, built natively with **SwiftUI** and **A
 
 Create an alarm by picking a time — that's it. Alarms ring through the system alarm UI (full-screen, works while locked, bypasses Silent mode), support snooze, and the calendar views show your alarms alongside Thai holidays.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/iphone-month.png" width="220" alt="Month view on iPhone"><br>iPhone — Month</td>
+    <td align="center"><img src="docs/screenshots/duo-closed-month.png" width="260" alt="Month view on iPhone Duo outer display"><br>iPhone Duo closed — Month</td>
+  </tr>
+</table>
+
+iPhone Duo open (inner display) — calendar beside the selected day's alarms:
+
+<img src="docs/screenshots/duo-open-month.png" width="640" alt="Month view on iPhone Duo inner display">
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/duo-open-week.png" width="400" alt="Week view on iPhone Duo inner display"><br>Week</td>
+    <td align="center"><img src="docs/screenshots/duo-open-list.png" width="400" alt="List view on iPhone Duo inner display"><br>List</td>
+  </tr>
+</table>
+
 ## Features
 
 - **Alarms** — one-shot alarms with a wheel time picker; fires at the next occurrence of that time-of-day, or on any day you pick from the calendar. Edit, delete (swipe), snooze 5 minutes.
