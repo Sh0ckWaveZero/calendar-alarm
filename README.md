@@ -84,6 +84,23 @@ Key decisions:
 - **Calendar paging** — a page-style `TabView` (±1 year of months / ±26 weeks) so the grid tracks the finger; the pager height is seeded from `@ScaledMetric` values and self-corrects from the page's measured layout height.
 - **Mode switching** — List → Month → Week by horizontal swipe or the segmented control, with a direction-aware slide transition.
 
+## iPhone Duo & wide windows
+
+The app stays iPhone-only (`TARGETED_DEVICE_FAMILY = 1`) but adapts to the iPhone Duo inner display, landscape, and other resizable windows. See Apple's [Preparing your app for iPhone Duo](https://developer.apple.com/documentation/technologyoverviews/preparing-your-app-for-iphone-duo).
+
+Layout rules:
+
+- **Decide layout from available space** — `AlarmsView` measures its width with `onGeometryChange`; at 600pt or wider, Month/Week show the calendar beside the selected day's list. Never use `UIScreen.main`, `userInterfaceIdiom`, interface orientation, or device sizes — the app is resized mid-session when iPhone Duo opens, closes, or folds.
+- **`ArrangementView` is iOS 27.1+** — it splits the calendar and list along the fold. Keep the `HStack` fallback for older iOS (deployment target is still 26.1), and don't place an `ArrangementView` inside a `List` or `ScrollView`.
+- **Build with Xcode 27.1+** — older SDKs leave the app short of the status bar and camera on the inner display.
+
+Testing:
+
+- The iPhone Duo simulator needs the iOS 27.1 simulator runtime (`xcodebuild -downloadPlatform iOS`).
+- Open, close, rotate, and fold only from **Device Hub** in Xcode — `simctl` has no posture command.
+- `simctl io <device> screenshot --display=3 out.png` captures the inner display (`--display=1` is the outer one).
+- Known gap: the half-folded pose has not been verified — Device Hub's fold didn't reach the simulator (its hinge log stayed `OpenFlat`), so check the fold on a real device.
+
 ## Notes
 
 - The AlarmKit full-screen alert (Stop / Snooze) is system UI and follows the device language, not the in-app language setting.
