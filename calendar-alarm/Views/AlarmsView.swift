@@ -18,6 +18,8 @@ struct AlarmsView: View {
     @State private var weekCursor = Date()
     @State private var navDirection = 1
     @AppStorage("addButtonSide") private var addButtonSide = "left"
+    /// Available width — iPhone Duo resizes the app mid-session on fold/unfold.
+    @State private var containerWidth: CGFloat = 0
 
     // Must match CalendarGridView's scaled metrics — they seed the pager height,
     // which then self-corrects from the page's measured layout height.
@@ -51,6 +53,11 @@ struct AlarmsView: View {
                 }
             }
             .background(Theme.background)
+            .onGeometryChange(for: CGFloat.self) { proxy in
+                proxy.size.width
+            } action: { width in
+                containerWidth = width
+            }
             .toolbar(.hidden, for: .navigationBar)
             .overlay(alignment: addButtonAlignment) {
                 // Floating add button — the header hosts Settings instead.
@@ -215,7 +222,7 @@ struct AlarmsView: View {
         let items = viewModel.items(on: day)
         let dayHolidays = viewModel.holidays(on: day)
         let cursor = mode == .month ? monthCursor : weekCursor
-        VStack(spacing: 0) {
+        let calendarColumn = VStack(spacing: 0) {
             CalendarHeaderView(
                 title: CalendarHeaderView.title(for: mode == .month ? .month : .week, cursor: cursor),
                 onToday: { jumpToToday() },
@@ -229,8 +236,8 @@ struct AlarmsView: View {
                 .padding(.horizontal, 16)
                 .padding(.top, 2)
                 .padding(.bottom, 6)
-
-            List {
+        }
+        let dayList = List {
                 Section {
                     ForEach(items) { item in
                         Button {
@@ -286,8 +293,50 @@ struct AlarmsView: View {
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .simultaneousGesture(modeSwipeGesture())
+
+        Group {
+            if usesSideBySideLayout {
+                // Wide or short window (iPhone Duo inner display, landscape):
+                // calendar beside the selected day's list.
+                let scrollingCalendar = ScrollView {
+                    calendarColumn
+                }
+                .scrollBounceBehavior(.basedOnSize)
+                if #available(iOS 27.1, *) {
+                    // Splits along the iPhone Duo fold when partially folded,
+                    // so neither the calendar nor the list sits in the crease.
+                    ArrangementView {
+                        scrollingCalendar
+                    } secondary: {
+                        dayList
+                    }
+                    .arrangementViewStyle(.split)
+                } else {
+                    HStack(alignment: .top, spacing: 0) {
+                        scrollingCalendar
+                            .frame(width: calendarColumnWidth)
+                        dayList
+                    }
+                }
+            } else {
+                VStack(spacing: 0) {
+                    calendarColumn
+                    dayList
+                }
+            }
         }
         .background(Theme.background)
+    }
+
+    /// Wide windows (iPhone Duo inner display, landscape) have room for the
+    /// calendar and the day list side by side. Based on available space, not
+    /// size class or device, per Apple's iPhone Duo guidance.
+    private var usesSideBySideLayout: Bool {
+        containerWidth >= 600
+    }
+
+    private var calendarColumnWidth: CGFloat {
+        min(420, containerWidth * 0.5)
     }
 
     /// Explains the dot colors — a quiet footnote under the grid card.
