@@ -20,6 +20,10 @@ struct AlarmsView: View {
     @AppStorage("addButtonSide") private var addButtonSide = "left"
     /// Available width — iPhone Duo resizes the app mid-session on fold/unfold.
     @State private var containerWidth: CGFloat = 0
+    /// On-screen frames of the alarm rows, in global coordinates.
+    @State private var rowFrames: [UUID: CGRect] = [:]
+    /// Whether the drag in progress began on an alarm row; nil between drags.
+    @State private var dragStartedOnRow: Bool?
 
     // Must match CalendarGridView's scaled metrics — they seed the pager height,
     // which then self-corrects from the page's measured layout height.
@@ -163,8 +167,21 @@ struct AlarmsView: View {
     }
 
     /// Horizontal swipe on the mode's list area switches List → Month → Week.
+    /// A swipe that starts on an alarm row belongs to the row's swipe-to-delete.
     private func modeSwipeGesture() -> some Gesture {
-        DragGesture(minimumDistance: 30).onEnded { value in
+        DragGesture(minimumDistance: 30, coordinateSpace: .global).onChanged { value in
+            // Decided while the drag is live: a full swipe deletes the row
+            // (and its frame) before the drag ends.
+            if dragStartedOnRow == nil {
+                // Height only: a row with its delete button showing sits
+                // shifted sideways, but the whole lane still belongs to it.
+                let y = value.startLocation.y
+                dragStartedOnRow = rowFrames.values.contains { $0.minY...$0.maxY ~= y }
+            }
+        }.onEnded { value in
+            let startedOnRow = dragStartedOnRow ?? false
+            dragStartedOnRow = nil
+            guard !startedOnRow else { return }
             let h = value.translation.width
             let v = value.translation.height
             guard abs(h) > 50, abs(h) > abs(v) * 2 else { return }
@@ -186,6 +203,30 @@ struct AlarmsView: View {
         let today = Calendar.current.startOfDay(for: Date())
         let day = selectedDay ?? today
         addTargetDay = day >= today ? day : nil
+    }
+
+    /// Alarm row: tap to edit, swipe to delete. Reports its frame so the mode
+    /// swipe can leave drags that start on it alone.
+    private func alarmRow(_ item: AlarmItem) -> some View {
+        Button {
+            editingItem = item
+        } label: {
+            AlarmRow(item: item)
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                Task { await viewModel.deleteAlarm(item) }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .onGeometryChange(for: CGRect.self) { proxy in
+            proxy.frame(in: .global)
+        } action: { frame in
+            rowFrames[item.id] = frame
+        }
+        .onDisappear { rowFrames[item.id] = nil }
     }
 
     @ViewBuilder
@@ -237,19 +278,7 @@ struct AlarmsView: View {
         let dayList = List {
                 Section {
                     ForEach(items) { item in
-                        Button {
-                            editingItem = item
-                        } label: {
-                            AlarmRow(item: item)
-                        }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                Task { await viewModel.deleteAlarm(item) }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
+                        alarmRow(item)
                     }
                 } header: {
                     DateUtil.heading(for: day)
@@ -495,19 +524,7 @@ struct AlarmsView: View {
             ForEach(viewModel.sections) { section in
                 Section {
                     ForEach(section.items) { item in
-                        Button {
-                            editingItem = item
-                        } label: {
-                            AlarmRow(item: item)
-                        }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                Task { await viewModel.deleteAlarm(item) }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
+                        alarmRow(item)
                     }
                 } header: {
                     DateUtil.heading(for: section.dayStart)
