@@ -91,7 +91,7 @@ struct AlarmEditSheet: View {
                     .padding(.top, 8)
                 }
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Theme.background)
             .navigationTitle(item == nil ? Text("New Alarm") : Text("Edit Alarm"))
             .navigationBarTitleDisplayMode(.inline)
@@ -115,7 +115,6 @@ struct AlarmEditSheet: View {
             }
             .onAppear(perform: seedValues)
         }
-        .presentationDetents([.medium, .large])
     }
 
     /// Picked fire days (new alarms only) — pushes a multi-select calendar.

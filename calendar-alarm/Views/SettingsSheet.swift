@@ -66,7 +66,6 @@ struct SettingsSheet: View {
                 }
             }
         }
-        .presentationDetents([.medium, .large])
     }
 
     @ViewBuilder
