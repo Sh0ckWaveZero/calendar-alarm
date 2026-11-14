@@ -8,12 +8,22 @@ Create an alarm by picking a time — that's it. Alarms ring through the system 
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/iphone-month.png" width="220" alt="Month view on iPhone"><br>iPhone — Month</td>
-    <td align="center"><img src="docs/screenshots/duo-closed-month.png" width="260" alt="Month view on iPhone Duo outer display"><br>iPhone Duo closed — Month</td>
+    <td align="center"><img src="docs/screenshots/iphone-list.png" width="220" alt="List view on iPhone"><br>List</td>
+    <td align="center"><img src="docs/screenshots/iphone-month.png" width="220" alt="Month view on iPhone"><br>Month</td>
+    <td align="center"><img src="docs/screenshots/iphone-week.png" width="220" alt="Week view on iPhone"><br>Week</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/iphone-new-alarm.png" width="220" alt="New alarm sheet with several days picked"><br>New alarm — several days</td>
+    <td align="center"><img src="docs/screenshots/iphone-sounds.png" width="220" alt="Sound list with app and iOS sounds"><br>Sounds</td>
+    <td align="center"><img src="docs/screenshots/iphone-settings.png" width="220" alt="Settings with default time and sound"><br>Settings</td>
   </tr>
 </table>
 
-iPhone Duo open (inner display) — calendar beside the selected day's alarms:
+iPhone Duo closed (outer display):
+
+<img src="docs/screenshots/duo-closed-month.png" width="260" alt="Month view on iPhone Duo outer display">
+
+iPhone Duo open (inner display) — calendar beside the alarm list:
 
 <img src="docs/screenshots/duo-open-month.png" width="640" alt="Month view on iPhone Duo inner display">
 
@@ -26,11 +36,12 @@ iPhone Duo open (inner display) — calendar beside the selected day's alarms:
 
 ## Features
 
-- **Alarms** — one-shot alarms with a wheel time picker; fires at the next occurrence of that time-of-day, or on any day you pick from the calendar. Edit, delete (swipe), snooze 5 minutes.
-- **Calendar views** — List / Month / Week modes with swipe navigation. Days with alarms show an orange dot; the selected day's alarms are listed under the grid.
-- **Thai holidays** — red dots + a holiday list under the selected day. Holidays come from the device's holiday calendars (EventKit) and fall back to Google's public Thai holidays ICS feed when none exist. Tap a holiday to set an alarm for that day.
-- **Custom alarm sounds** — three bundled sounds (Chime / Beep / Rise) plus the ringtones and alert tones that ship with iOS, with tap-to-preview. Pick one per alarm, or set a default for new alarms in Settings. - **Default alarm time** — an optional time-of-day in Settings that new alarms start from.
-- **Several days at once** — the add sheet has a multi-select calendar; one alarm is created per picked day. Editing an alarm can move it to another day.
+- **Alarms** — one-shot alarms with a wheel time picker. Edit (time, day, sound), delete (swipe), snooze 5 minutes.
+- **Several days at once** — the add sheet has a calendar where you tap any number of days; one alarm is created per picked day. Days that already have alarms or are holidays show their dots while you pick.
+- **Calendar views** — List / Month / Week modes with swipe navigation. Days with alarms show an orange dot. Month and Week list every alarm in the visible month or week, grouped by day; tapping a day scrolls to its alarms.
+- **Thai holidays** — red dots + a holiday list for the selected day. Holidays come from the device's holiday calendars (EventKit) and fall back to Google's public Thai holidays ICS feed when none exist. Tap a holiday to set an alarm for that day.
+- **Alarm sounds** — three bundled sounds (Chime / Beep / Rise) plus the ringtones and alert tones that ship with iOS, with tap-to-preview. Pick one per alarm.
+- **Defaults for new alarms** — Settings holds a default sound and an optional default time-of-day. Both can still be changed per alarm; Siri-created alarms use the default sound.
 - **Theme** — System / Light / Dark.
 - **Language** — English / Thai, switchable in-app (month and weekday names included).
 - **Add button position** — left or right, your choice.
@@ -83,10 +94,10 @@ calendar-alarm/
 │   └── AlarmsViewModel.swift      # single source of state for the alarm list
 ├── Views/
 │   ├── AlarmsView.swift           # main screen: list / month / week modes
-│   ├── CalendarGridView.swift     # calendar header + page grid
+│   ├── CalendarGridView.swift     # calendar header + page grid + dot legend (shared with the alarm sheet)
 │   ├── AlarmEditSheet.swift       # add/edit sheet (time, days, sound)
 │   ├── SoundPickerView.swift      # sound list with preview (bundled + iOS sounds)
-│   ├── SettingsSheet.swift        # theme / language / add-button side
+│   ├── SettingsSheet.swift        # theme / language / default time + sound / add-button side
 │   └── ...
 ├── Support/
 │   ├── CalendarGrid.swift         # pure month/week day math (firstWeekday-aware)
@@ -104,7 +115,9 @@ Key decisions:
 - **Alarm sounds must be CAF and the name passed to `AlertSound.named` must include the `.caf` extension** — the daemon resolves the name literally against the app container's `Library/Sounds`; anything else silently falls back to the default sound.
 - **Holiday sources** — `HolidayService` picks one provider per session: EventKit (subscribed/holiday calendars) if it yields results, otherwise the ICS feed (`ICSHolidayProvider`, RFC-5545 parsing, 7-day JSON cache in Application Support, stale cache served offline).
 - **Calendar paging** — a page-style `TabView` (±1 year of months / ±26 weeks) so the grid tracks the finger; the pager height is seeded from `@ScaledMetric` values and self-corrects from the page's measured layout height.
-- **Mode switching** — List → Month → Week by horizontal swipe or the segmented control, with a direction-aware slide transition.
+- **iOS sounds are copied on use** — AlarmKit can't play a system file in place, so a picked iOS sound is copied (ringtones are decoded to CAF) into `Library/Sounds` when its alarm is scheduled. Its stored name is `ios-<file name>`; sounds under one second are left out of the list.
+- **Mode switching** — List → Month → Week by horizontal swipe or the segmented control, with a direction-aware slide transition. A swipe that starts on an alarm row is left to the row's swipe-to-delete.
+- **Sheets are full height** — partial-height sheets float inset with rounded bottom corners on iOS 26+, so the alarm and settings sheets use the default large detent.
 
 ## iPhone Duo & wide windows
 
@@ -112,7 +125,7 @@ The app stays iPhone-only (`TARGETED_DEVICE_FAMILY = 1`) but adapts to the iPhon
 
 Layout rules:
 
-- **Decide layout from available space** — `AlarmsView` measures its width with `onGeometryChange`; at 600pt or wider, Month/Week show the calendar beside the selected day's list. Never use `UIScreen.main`, `userInterfaceIdiom`, interface orientation, or device sizes — the app is resized mid-session when iPhone Duo opens, closes, or folds.
+- **Decide layout from available space** — `AlarmsView` measures its width with `onGeometryChange`; at 600pt or wider, Month/Week show the calendar beside the alarm list. Never use `UIScreen.main`, `userInterfaceIdiom`, interface orientation, or device sizes — the app is resized mid-session when iPhone Duo opens, closes, or folds.
 - **`ArrangementView` is iOS 27.1+** — it splits the calendar and list along the fold. Keep the `HStack` fallback for older iOS (deployment target is still 26.1), and don't place an `ArrangementView` inside a `List` or `ScrollView`.
 - **Build with Xcode 27.1+** — older SDKs leave the app short of the status bar and camera on the inner display.
 

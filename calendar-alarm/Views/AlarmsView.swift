@@ -336,7 +336,8 @@ struct AlarmsView: View {
             .onChange(of: selectedDay) { _, newDay in
                 // Tapping a day in the grid brings its alarms into view.
                 guard let first = periodSections.first(where: { $0.dayStart == newDay })?.items.first else { return }
-                withAnimation { proxy.scrollTo(first.id, anchor: .top) }
+                // Centered, so the day's header above the row stays visible.
+                withAnimation { proxy.scrollTo(first.id, anchor: .center) }
             }
         }
 
