@@ -135,10 +135,27 @@ final class AlarmsViewModel: ObservableObject {
         } else {
             fireDate = DateUtil.nextOccurrence(of: timeOfDay)
         }
-        let item = AlarmItem(time: fireDate, soundName: soundName)
-        context.insert(item)
+        await insertAlarms(firing: [fireDate], soundName: soundName)
+    }
+
+    /// Creates one alarm per picked day, all at the same time-of-day.
+    func addAlarms(timeOfDay: Date, days: [Date], soundName: String? = nil) async {
+        let uniqueDays = Set(days.map { Calendar.current.startOfDay(for: $0) }).sorted()
+        await insertAlarms(
+            firing: uniqueDays.map { DateUtil.combine(day: $0, timeOfDay: timeOfDay) },
+            soundName: soundName
+        )
+    }
+
+    private func insertAlarms(firing fireDates: [Date], soundName: String?) async {
+        let items = fireDates.map { AlarmItem(time: $0, soundName: soundName) }
+        for item in items {
+            context.insert(item)
+        }
         try? context.save()
-        await schedule(item)
+        for item in items {
+            await schedule(item)
+        }
         reloadSections()
     }
 

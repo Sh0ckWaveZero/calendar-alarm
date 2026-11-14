@@ -84,11 +84,11 @@ struct AlarmsView: View {
         }
         .sheet(item: $editingItem) { item in
             AlarmEditSheet(item: item, viewModel: viewModel)
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
         }
         .sheet(isPresented: $showAddSheet) {
             AlarmEditSheet(item: nil, day: addTargetDay, seedTime: addSeedTime, viewModel: viewModel)
-                .presentationDetents([.medium])
+                .presentationDetents([.medium, .large])
         }
         .alert(
             "Alarm permission denied",

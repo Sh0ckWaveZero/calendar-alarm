@@ -227,6 +227,27 @@ final class AlarmsViewModelTests: XCTestCase {
         XCTAssertEqual(Calendar.current.component(.minute, from: fire), 15)
     }
 
+    func testAddAlarmsCreatesOneAlarmPerPickedDay() async throws {
+        let (container, viewModel, scheduler) = try makeWorld()
+        _ = container
+
+        let calendar = Calendar.current
+        let days = [2, 5, 9].map { calendar.date(byAdding: .day, value: $0, to: Date())! }
+        // The same day picked twice must not ring twice.
+        await viewModel.addAlarms(timeOfDay: dateAt(hour: 6, minute: 15), days: days + [days[0]], soundName: "alarm-rise")
+
+        XCTAssertEqual(
+            scheduler.scheduled.map { calendar.startOfDay(for: $0.fireDate) },
+            days.map { calendar.startOfDay(for: $0) }
+        )
+        XCTAssertTrue(scheduler.scheduled.allSatisfy {
+            calendar.component(.hour, from: $0.fireDate) == 6 && calendar.component(.minute, from: $0.fireDate) == 15
+        })
+        XCTAssertTrue(scheduler.scheduled.allSatisfy { $0.soundName == "alarm-rise" })
+        XCTAssertEqual(viewModel.sections.count, 3)
+        XCTAssertEqual(viewModel.daysWithAlarms.count, 3)
+    }
+
     func testAddAlarmTodayWithPassedTimeSkipsScheduling() async throws {
         let (container, viewModel, scheduler) = try makeWorld()
         _ = container

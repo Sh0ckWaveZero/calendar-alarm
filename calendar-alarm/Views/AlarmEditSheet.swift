@@ -1,6 +1,7 @@
 import SwiftUI
 
 /// Add (item == nil) or edit (item != nil) an alarm — time plus optional sound.
+/// Adding accepts several days at once and creates one alarm per day.
 /// Uses standard iOS chrome: Cancel/Save in the nav bar, Clock-style delete button.
 struct AlarmEditSheet: View {
     let item: AlarmItem?
@@ -12,25 +13,30 @@ struct AlarmEditSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var timeOfDay: Date = Date()
-    @State private var targetDay: Date = Calendar.current.startOfDay(for: Date())
+    @State private var targetDays: Set<DateComponents> = []
     @State private var soundName: String?
     @State private var isLoaded = false
 
-    /// Editing keeps its day; adding uses the picked day (seeded from the
-    /// calendar selection, otherwise today).
-    private var resolvedDate: Date {
-        if let item {
-            return DateUtil.combine(day: item.time, timeOfDay: timeOfDay)
-        }
-        return DateUtil.combine(day: targetDay, timeOfDay: timeOfDay)
+    private static let dayComponents: Set<Calendar.Component> = [.calendar, .era, .year, .month, .day]
+
+    /// Picked fire days, earliest first (new alarms only).
+    private var sortedDays: [Date] {
+        targetDays.compactMap { Calendar.current.date(from: $0) }.sorted()
     }
 
-    private var isPassed: Bool { resolvedDate <= Date() }
+    /// Editing keeps its day; adding is judged by the earliest picked day.
+    private var earliestDay: Date? {
+        item?.time ?? sortedDays.first
+    }
 
-    /// When the fire day is today, past times are not selectable on the wheel.
+    private var isPassed: Bool {
+        guard let earliestDay else { return false }
+        return DateUtil.combine(day: earliestDay, timeOfDay: timeOfDay) <= Date()
+    }
+
+    /// When the earliest fire day is today, past times are not selectable on the wheel.
     private var timeRange: ClosedRange<Date> {
-        let day = item?.time ?? targetDay
-        if Calendar.current.isDateInToday(day) {
+        if let earliestDay, Calendar.current.isDateInToday(earliestDay) {
             return Date()...Date.distantFuture
         }
         return Date.distantPast...Date.distantFuture
@@ -47,24 +53,27 @@ struct AlarmEditSheet: View {
                 )
                 .datePickerStyle(.wheel)
                 .labelsHidden()
-                .onChange(of: targetDay) { _, newDay in
-                    // Switching back to today while a past time is picked bumps
-                    // the wheel to the earliest valid time.
-                    if Calendar.current.isDateInToday(newDay),
-                       DateUtil.combine(day: newDay, timeOfDay: timeOfDay) <= Date() {
+                .onChange(of: targetDays) {
+                    // Adding today while a past time is picked bumps the wheel
+                    // to the earliest valid time.
+                    if isPassed {
                         timeOfDay = Date().addingTimeInterval(120)
                     }
                 }
 
                 if item == nil {
-                    dayPicker
+                    daysRow
                         .padding(.horizontal, 20)
                 }
 
-                soundPicker
+                SoundPickerRow(title: Text("Sound"), selection: $soundName)
                     .padding(.horizontal, 20)
 
-                if isPassed {
+                if item == nil && targetDays.isEmpty {
+                    Text("Select at least one day.")
+                        .font(.footnote)
+                        .foregroundStyle(.red)
+                } else if isPassed {
                     Text("This time has already passed.")
                         .font(.footnote)
                         .foregroundStyle(.red)
@@ -96,58 +105,69 @@ struct AlarmEditSheet: View {
                             if let item {
                                 await viewModel.updateAlarm(item, timeOfDay: timeOfDay, soundName: soundName)
                             } else {
-                                await viewModel.addAlarm(timeOfDay: timeOfDay, day: targetDay, soundName: soundName)
+                                await viewModel.addAlarms(timeOfDay: timeOfDay, days: sortedDays, soundName: soundName)
                             }
                             dismiss()
                         }
                     }
-                    .disabled(isPassed)
+                    .disabled(isPassed || (item == nil && targetDays.isEmpty))
                 }
             }
             .onAppear(perform: seedValues)
         }
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
     }
 
-    /// Picked fire day (new alarms only) — compact native date picker in a card row.
-    private var dayPicker: some View {
-        HStack {
-            Text("Date")
-                .foregroundStyle(Theme.text)
-            Spacer()
-            DatePicker(
-                "",
-                selection: $targetDay,
-                in: Calendar.current.startOfDay(for: Date())...,
-                displayedComponents: [.date]
-            )
-            .labelsHidden()
-            .tint(Theme.accent)
-        }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
-        .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
-    }
-
-    private var soundPicker: some View {
-        HStack {
-            Text("Sound")
-                .foregroundStyle(Theme.text)
-            Spacer()
-            Picker("Sound", selection: $soundName) {
-                Text(String(localized: "Default")).tag(String?.none)
-                ForEach(SoundCatalog.sounds, id: \.file) { sound in
-                    Text(sound.label).tag(String?.some(sound.file))
-                }
+    /// Picked fire days (new alarms only) — pushes a multi-select calendar.
+    private var daysRow: some View {
+        NavigationLink {
+            daysPicker
+        } label: {
+            HStack {
+                Text("Date")
+                    .foregroundStyle(Theme.text)
+                Spacer()
+                daysSummary
+                    .foregroundStyle(Theme.accent)
+                Image(systemName: "chevron.right")
+                    .font(.footnote.weight(.semibold))
+                    .foregroundStyle(Theme.subtext)
             }
-            .pickerStyle(.menu)
-            .tint(Theme.accent)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(Theme.card)
+            .clipShape(RoundedRectangle(cornerRadius: 14))
+            .contentShape(RoundedRectangle(cornerRadius: 14))
         }
-        .padding(.horizontal, 14)
-        .padding(.vertical, 6)
-        .background(Theme.card)
-        .clipShape(RoundedRectangle(cornerRadius: 14))
+        .buttonStyle(.plain)
+    }
+
+    private var daysSummary: Text {
+        let days = sortedDays
+        if days.count == 1, let only = days.first {
+            return Text(only, format: .dateTime.day().month(.abbreviated).year())
+        }
+        return Text("\(days.count) days")
+    }
+
+    private var daysPicker: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                MultiDatePicker(
+                    "Date",
+                    selection: $targetDays,
+                    in: Calendar.current.startOfDay(for: Date())...
+                )
+                .tint(Theme.accent)
+                Text("Pick one or more days. An alarm is created for each day.")
+                    .font(.caption)
+                    .foregroundStyle(Theme.subtext)
+            }
+            .padding(.horizontal, 20)
+        }
+        .background(Theme.background)
+        .navigationTitle(Text("Select Days"))
+        .navigationBarTitleDisplayMode(.inline)
     }
 
     private func seedValues() {
@@ -158,8 +178,8 @@ struct AlarmEditSheet: View {
             soundName = item.soundName
         } else {
             timeOfDay = seedTime ?? Date().addingTimeInterval(3600)
-            targetDay = Calendar.current.startOfDay(for: day ?? Date())
-            soundName = nil
+            targetDays = [Calendar.current.dateComponents(Self.dayComponents, from: day ?? Date())]
+            soundName = AlarmDefaults.soundName
         }
     }
 }

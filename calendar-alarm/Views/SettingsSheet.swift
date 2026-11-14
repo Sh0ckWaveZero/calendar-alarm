@@ -1,13 +1,14 @@
 import SwiftUI
 
 /// In-app settings: theme (light/dark/system), language (English/Thai/system),
-/// and the floating add-button side. Values live in App Storage and take effect
+/// the default alarm sound, and the floating add-button side. Values live in App Storage and take effect
 /// immediately — the root view maps them to preferredColorScheme and the locale
 /// environment. Flat layout (no grouped Form) so controls aren't double-boxed.
 struct SettingsSheet: View {
     @AppStorage("appearanceMode") private var appearanceMode = "system"
     @AppStorage("appLanguage") private var appLanguage = "system"
     @AppStorage("addButtonSide") private var addButtonSide = "left"
+    @AppStorage(AlarmDefaults.soundKey) private var defaultSoundName: String?
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
@@ -34,6 +35,12 @@ struct SettingsSheet: View {
                         .pickerStyle(.segmented)
                     } caption: {
                         Text("System follows your device language.")
+                    }
+
+                    section(title: Text("Default Sound")) {
+                        SoundPickerRow(title: Text("Sound"), selection: $defaultSoundName)
+                    } caption: {
+                        Text("Used for new alarms. You can still change the sound for each alarm.")
                     }
 
                     section(title: Text("Add Button")) {

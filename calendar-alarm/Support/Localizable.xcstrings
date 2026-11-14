@@ -539,6 +539,105 @@
           }
         }
       }
+    },
+    "Select at least one day.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกอย่างน้อย 1 วัน"
+          }
+        }
+      }
+    },
+    "%lld days": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld วัน"
+          }
+        }
+      }
+    },
+    "Pick one or more days. An alarm is created for each day.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกได้หลายวัน ระบบจะสร้างการปลุกให้ทุกวันที่เลือก"
+          }
+        }
+      }
+    },
+    "Select Days": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกวัน"
+          }
+        }
+      }
+    },
+    "Default Sound": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสียงเริ่มต้น"
+          }
+        }
+      }
+    },
+    "Used for new alarms. You can still change the sound for each alarm.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้กับการปลุกใหม่ และยังเปลี่ยนเสียงของแต่ละการปลุกได้"
+          }
+        }
+      }
+    },
+    "App Sounds": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสียงในแอป"
+          }
+        }
+      }
+    },
+    "iOS Ringtones": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสียงเรียกเข้า iOS"
+          }
+        }
+      }
+    },
+    "iOS Sounds": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสียงระบบ iOS"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
