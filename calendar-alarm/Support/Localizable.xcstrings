@@ -551,17 +551,6 @@
         }
       }
     },
-    "%lld days": {
-      "extractionState": "manual",
-      "localizations": {
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "%lld วัน"
-          }
-        }
-      }
-    },
     "Pick one or more days. An alarm is created for each day.": {
       "extractionState": "manual",
       "localizations": {
@@ -569,17 +558,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "เลือกได้หลายวัน ระบบจะสร้างการปลุกให้ทุกวันที่เลือก"
-          }
-        }
-      }
-    },
-    "Select Days": {
-      "extractionState": "manual",
-      "localizations": {
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "เลือกวัน"
           }
         }
       }

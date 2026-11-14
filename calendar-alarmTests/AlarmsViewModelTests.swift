@@ -155,6 +155,24 @@ final class AlarmsViewModelTests: XCTestCase {
         XCTAssertEqual(item.soundName, "alarm-beep")
     }
 
+    func testUpdateAlarmMovesToPickedDay() async throws {
+        let (container, viewModel, scheduler) = try makeWorld()
+        _ = container
+
+        let calendar = Calendar.current
+        await viewModel.addAlarm(timeOfDay: dateAt(hour: 7, minute: 0), day: calendar.date(byAdding: .day, value: 2, to: Date())!)
+        let item = try XCTUnwrap(viewModel.sections.first?.items.first)
+        let newDay = calendar.date(byAdding: .day, value: 6, to: Date())!
+
+        await viewModel.updateAlarm(item, timeOfDay: dateAt(hour: 7, minute: 0), day: newDay)
+
+        let fire = try XCTUnwrap(scheduler.scheduled.last?.fireDate)
+        XCTAssertEqual(calendar.startOfDay(for: fire), calendar.startOfDay(for: newDay))
+        XCTAssertEqual(calendar.component(.hour, from: fire), 7)
+        XCTAssertEqual(scheduler.cancelled.count, 1)
+        XCTAssertEqual(viewModel.sections.map(\.dayStart), [calendar.startOfDay(for: newDay)])
+    }
+
     func testDeleteAlarmCancelsNativeAlarm() async throws {
         let (container, viewModel, scheduler) = try makeWorld()
         _ = container

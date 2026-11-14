@@ -159,9 +159,10 @@ final class AlarmsViewModel: ObservableObject {
         reloadSections()
     }
 
-    /// Reschedules an existing alarm, keeping its day and applying the picked time-of-day and sound.
-    func updateAlarm(_ item: AlarmItem, timeOfDay: Date, soundName: String? = nil) async {
-        let newTime = DateUtil.combine(day: item.time, timeOfDay: timeOfDay)
+    /// Reschedules an existing alarm with the picked time-of-day and sound,
+    /// on `day` when given, otherwise on the day it already had.
+    func updateAlarm(_ item: AlarmItem, timeOfDay: Date, day: Date? = nil, soundName: String? = nil) async {
+        let newTime = DateUtil.combine(day: day ?? item.time, timeOfDay: timeOfDay)
         guard newTime != item.time || soundName != item.soundName else { return }
         if let oldId = item.alarmId {
             try? await scheduler.cancelEventAlarm(oldId)

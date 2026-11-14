@@ -14,6 +14,7 @@ struct AlarmEditSheet: View {
 
     @State private var timeOfDay: Date = Date()
     @State private var targetDays: Set<DateComponents> = []
+    @State private var editDay: Date = Date()
     @State private var soundName: String?
     @State private var isLoaded = false
 
@@ -24,9 +25,9 @@ struct AlarmEditSheet: View {
         targetDays.compactMap { Calendar.current.date(from: $0) }.sorted()
     }
 
-    /// Editing keeps its day; adding is judged by the earliest picked day.
+    /// Editing has one day; adding is judged by the earliest picked day.
     private var earliestDay: Date? {
-        item?.time ?? sortedDays.first
+        item == nil ? sortedDays.first : editDay
     }
 
     private var isPassed: Bool {
@@ -44,52 +45,49 @@ struct AlarmEditSheet: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 12) {
-                DatePicker(
-                    "",
-                    selection: $timeOfDay,
-                    in: timeRange,
-                    displayedComponents: [.hourAndMinute]
-                )
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                .onChange(of: targetDays) {
-                    // Adding today while a past time is picked bumps the wheel
+            ScrollView {
+                VStack(spacing: 12) {
+                    DatePicker(
+                        "",
+                        selection: $timeOfDay,
+                        in: timeRange,
+                        displayedComponents: [.hourAndMinute]
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    // Picking today while a past time is set bumps the wheel
                     // to the earliest valid time.
-                    if isPassed {
-                        timeOfDay = Date().addingTimeInterval(120)
+                    .onChange(of: targetDays) { bumpPassedTime() }
+                    .onChange(of: editDay) { bumpPassedTime() }
+
+                    calendarCard
+
+                    SoundPickerRow(title: Text("Sound"), selection: $soundName)
+
+                    if item == nil && targetDays.isEmpty {
+                        Text("Select at least one day.")
+                            .font(.footnote)
+                            .foregroundStyle(.red)
+                    } else if isPassed {
+                        Text("This time has already passed.")
+                            .font(.footnote)
+                            .foregroundStyle(.red)
                     }
-                }
 
-                if item == nil {
-                    daysRow
-                        .padding(.horizontal, 20)
-                }
-
-                SoundPickerRow(title: Text("Sound"), selection: $soundName)
-                    .padding(.horizontal, 20)
-
-                if item == nil && targetDays.isEmpty {
-                    Text("Select at least one day.")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                } else if isPassed {
-                    Text("This time has already passed.")
-                        .font(.footnote)
-                        .foregroundStyle(.red)
-                }
-
-                if item != nil {
-                    Button(role: .destructive) {
-                        Task {
-                            await viewModel.deleteAlarm(item!)
-                            dismiss()
+                    if item != nil {
+                        Button(role: .destructive) {
+                            Task {
+                                await viewModel.deleteAlarm(item!)
+                                dismiss()
+                            }
+                        } label: {
+                            Text("Delete Alarm")
                         }
-                    } label: {
-                        Text("Delete Alarm")
+                        .padding(.top, 8)
                     }
-                    .padding(.top, 8)
                 }
+                .padding(.horizontal, 20)
+                .padding(.bottom, 24)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Theme.background)
@@ -103,7 +101,7 @@ struct AlarmEditSheet: View {
                     Button("Save") {
                         Task {
                             if let item {
-                                await viewModel.updateAlarm(item, timeOfDay: timeOfDay, soundName: soundName)
+                                await viewModel.updateAlarm(item, timeOfDay: timeOfDay, day: editDay, soundName: soundName)
                             } else {
                                 await viewModel.addAlarms(timeOfDay: timeOfDay, days: sortedDays, soundName: soundName)
                             }
@@ -117,56 +115,31 @@ struct AlarmEditSheet: View {
         }
     }
 
-    /// Picked fire days (new alarms only) — pushes a multi-select calendar.
-    private var daysRow: some View {
-        NavigationLink {
-            daysPicker
-        } label: {
-            HStack {
-                Text("Date")
-                    .foregroundStyle(Theme.text)
-                Spacer()
-                daysSummary
-                    .foregroundStyle(Theme.accent)
-                Image(systemName: "chevron.right")
-                    .font(.footnote.weight(.semibold))
-                    .foregroundStyle(Theme.subtext)
-            }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .background(Theme.card)
-            .clipShape(RoundedRectangle(cornerRadius: 14))
-            .contentShape(RoundedRectangle(cornerRadius: 14))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private var daysSummary: Text {
-        let days = sortedDays
-        if days.count == 1, let only = days.first {
-            return Text(only, format: .dateTime.day().month(.abbreviated).year())
-        }
-        return Text("\(days.count) days")
-    }
-
-    private var daysPicker: some View {
-        ScrollView {
-            VStack(alignment: .leading, spacing: 12) {
-                MultiDatePicker(
-                    "Date",
-                    selection: $targetDays,
-                    in: Calendar.current.startOfDay(for: Date())...
-                )
-                .tint(Theme.accent)
+    /// Fire day(s): adding picks any number of days, editing moves the one day.
+    private var calendarCard: some View {
+        let today = Calendar.current.startOfDay(for: Date())
+        return VStack(alignment: .leading, spacing: 8) {
+            if item == nil {
+                MultiDatePicker("Date", selection: $targetDays, in: today...)
                 Text("Pick one or more days. An alarm is created for each day.")
                     .font(.caption)
                     .foregroundStyle(Theme.subtext)
+            } else {
+                DatePicker("Date", selection: $editDay, in: today..., displayedComponents: [.date])
+                    .datePickerStyle(.graphical)
             }
-            .padding(.horizontal, 20)
         }
-        .background(Theme.background)
-        .navigationTitle(Text("Select Days"))
-        .navigationBarTitleDisplayMode(.inline)
+        .tint(Theme.accent)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .background(Theme.card)
+        .clipShape(RoundedRectangle(cornerRadius: 14))
+    }
+
+    private func bumpPassedTime() {
+        if isPassed {
+            timeOfDay = Date().addingTimeInterval(120)
+        }
     }
 
     private func seedValues() {
@@ -174,6 +147,8 @@ struct AlarmEditSheet: View {
         isLoaded = true
         if let item {
             timeOfDay = item.time
+            // An alarm that already fired today can only move forward.
+            editDay = max(item.time, Calendar.current.startOfDay(for: Date()))
             soundName = item.soundName
         } else {
             timeOfDay = seedTime ?? Date().addingTimeInterval(3600)
