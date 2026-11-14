@@ -258,13 +258,14 @@ struct AlarmsView: View {
         }
     }
 
-    /// Month/week calendar with the selected day's alarms and holidays listed underneath.
+    /// Month/week calendar with every alarm in the visible month/week listed
+    /// underneath, after the selected day's holidays.
     /// The grid sits OUTSIDE the List so swipes page it reliably; the day list below
     /// stays a List for swipe-to-delete.
     @ViewBuilder
     private func calendarContent(_ mode: DisplayMode) -> some View {
         let day = selectedDay ?? Calendar.current.startOfDay(for: Date())
-        let items = viewModel.items(on: day)
+        let periodSections = viewModel.sections(in: visiblePeriod(for: mode))
         let dayHolidays = viewModel.holidays(on: day)
         let cursor = mode == .month ? monthCursor : weekCursor
         let calendarColumn = VStack(spacing: 0) {
@@ -282,18 +283,8 @@ struct AlarmsView: View {
                 .padding(.top, 2)
                 .padding(.bottom, 6)
         }
-        let dayList = List {
-                Section {
-                    ForEach(items) { item in
-                        alarmRow(item)
-                    }
-                } header: {
-                    DateUtil.heading(for: day)
-                } footer: {
-                    if items.isEmpty && dayHolidays.isEmpty {
-                        Text("No alarms on this day")
-                    }
-                }
+        let dayList = ScrollViewReader { proxy in
+            List {
                 if !dayHolidays.isEmpty {
                     Section {
                         ForEach(dayHolidays) { holiday in
@@ -322,10 +313,32 @@ struct AlarmsView: View {
                         Text("Tap a holiday to set an alarm for that day.")
                     }
                 }
+                ForEach(periodSections) { section in
+                    Section {
+                        ForEach(section.items) { item in
+                            alarmRow(item)
+                                .id(item.id)
+                        }
+                    } header: {
+                        DateUtil.heading(for: section.dayStart)
+                    }
+                }
+                if periodSections.isEmpty {
+                    Section {
+                    } footer: {
+                        mode == .month ? Text("No alarms this month") : Text("No alarms this week")
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .simultaneousGesture(modeSwipeGesture())
+            .onChange(of: selectedDay) { _, newDay in
+                // Tapping a day in the grid brings its alarms into view.
+                guard let first = periodSections.first(where: { $0.dayStart == newDay })?.items.first else { return }
+                withAnimation { proxy.scrollTo(first.id, anchor: .top) }
+            }
+        }
 
         Group {
             if usesSideBySideLayout {
@@ -359,6 +372,16 @@ struct AlarmsView: View {
             }
         }
         .background(Theme.background)
+    }
+
+    /// The month or week the calendar currently shows.
+    private func visiblePeriod(for mode: DisplayMode) -> DateInterval {
+        let calendar = Calendar.current
+        if mode == .month, let month = calendar.dateInterval(of: .month, for: monthCursor) {
+            return month
+        }
+        let weekStart = Self.weekAnchor(of: weekCursor, calendar: calendar)
+        return DateInterval(start: weekStart, end: calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart)
     }
 
     /// Wide windows (iPhone Duo inner display, landscape) have room for the

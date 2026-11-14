@@ -278,25 +278,27 @@ final class AlarmsViewModelTests: XCTestCase {
         XCTAssertNil(item.alarmId)
     }
 
-    func testItemsOnDayFiltersAndSorts() async throws {
+    func testSectionsInPeriodKeepsOnlyDaysInsideSortedByTime() async throws {
         let (container, viewModel, scheduler) = try makeWorld()
         _ = scheduler
 
-        let day = Calendar.current.startOfDay(for: Calendar.current.date(byAdding: .day, value: 5, to: Date())!)
+        let calendar = Calendar.current
+        let day = calendar.startOfDay(for: calendar.date(byAdding: .day, value: 5, to: Date())!)
         let evening = DateUtil.combine(day: day, timeOfDay: dateAt(hour: 22, minute: 0))
         let morning = DateUtil.combine(day: day, timeOfDay: dateAt(hour: 8, minute: 0))
-        container.mainContext.insert(AlarmItem(time: evening, alarmId: UUID()))
-        container.mainContext.insert(AlarmItem(time: morning, alarmId: UUID()))
+        let periodEnd = calendar.date(byAdding: .day, value: 2, to: day)!
+        // An alarm at the period's end boundary belongs to the next period.
+        for time in [evening, morning, periodEnd.addingTimeInterval(3600)] {
+            container.mainContext.insert(AlarmItem(time: time, alarmId: UUID()))
+        }
         try container.mainContext.save()
 
         await viewModel.load()
 
-        let onDay = viewModel.items(on: day)
-        XCTAssertEqual(onDay.count, 2)
-        XCTAssertEqual(onDay.first?.time, morning)
-        XCTAssertEqual(onDay.last?.time, evening)
-        XCTAssertEqual(viewModel.daysWithAlarms, [day])
-        XCTAssertTrue(viewModel.items(on: Calendar.current.date(byAdding: .day, value: 6, to: day)!).isEmpty)
+        let inPeriod = viewModel.sections(in: DateInterval(start: day, end: periodEnd))
+        XCTAssertEqual(inPeriod.map(\.dayStart), [day])
+        XCTAssertEqual(inPeriod.first?.items.map(\.time), [morning, evening])
+        XCTAssertEqual(viewModel.daysWithAlarms, [day, periodEnd])
     }
 
     // MARK: - Helpers

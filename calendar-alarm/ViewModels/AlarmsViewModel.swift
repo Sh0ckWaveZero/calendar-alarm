@@ -21,7 +21,6 @@ final class AlarmsViewModel: ObservableObject {
     let scheduler: AlarmScheduling
     private let context: ModelContext
     private let holidayService: HolidayService
-    private var upcomingItems: [AlarmItem] = []
     private var holidayWindow: DateInterval?
     private var holidayLoadTask: Task<Void, Never>?
 
@@ -69,7 +68,6 @@ final class AlarmsViewModel: ObservableObject {
     }
 
     private func reloadSections(from upcoming: [AlarmItem]) {
-        upcomingItems = upcoming
         daysWithAlarms = Set(upcoming.map { Calendar.current.startOfDay(for: $0.time) })
         let grouped = Dictionary(grouping: upcoming) { item in
             Calendar.current.startOfDay(for: item.time)
@@ -90,12 +88,9 @@ final class AlarmsViewModel: ObservableObject {
         return (try? context.fetch(descriptor)) ?? []
     }
 
-    /// Alarms firing on the given day, oldest first (for the calendar day list).
-    func items(on day: Date) -> [AlarmItem] {
-        let target = Calendar.current.startOfDay(for: day)
-        return upcomingItems
-            .filter { Calendar.current.isDate($0.time, inSameDayAs: target) }
-            .sorted { $0.time < $1.time }
+    /// Day-sections whose day falls inside `period` (the calendar's visible month or week).
+    func sections(in period: DateInterval) -> [AlarmSection] {
+        sections.filter { $0.dayStart >= period.start && $0.dayStart < period.end }
     }
 
     /// Holidays on the given day (for the calendar day list).

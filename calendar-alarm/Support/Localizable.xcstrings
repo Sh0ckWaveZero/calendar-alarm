@@ -507,17 +507,6 @@
         }
       }
     },
-    "No alarms on this day": {
-      "extractionState": "manual",
-      "localizations": {
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ไม่มีการปลุกในวันนี้"
-          }
-        }
-      }
-    },
     "Sound": {
       "extractionState": "manual",
       "localizations": {
@@ -657,6 +646,28 @@
           "stringUnit": {
             "state": "translated",
             "value": "การปลุกใหม่จะเริ่มที่เวลานี้ และยังเปลี่ยนเวลาของแต่ละการปลุกได้"
+          }
+        }
+      }
+    },
+    "No alarms this month": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่มีการปลุกในเดือนนี้"
+          }
+        }
+      }
+    },
+    "No alarms this week": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่มีการปลุกในสัปดาห์นี้"
           }
         }
       }
