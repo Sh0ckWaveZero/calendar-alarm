@@ -15,9 +15,23 @@ struct AlarmSound: Identifiable, Hashable {
     let url: URL
 }
 
-/// The user's default sound for new alarms (Settings); nil = system default.
+/// Defaults for new alarms, set in Settings.
 enum AlarmDefaults {
     static let soundKey = "defaultSoundName"
+    static let timeEnabledKey = "defaultTimeEnabled"
+    static let timeMinutesKey = "defaultTimeMinutes"
+    /// 7:00, used until the user picks their own default time.
+    static let fallbackTimeMinutes = 7 * 60
+
+    /// Today at the default time-of-day; nil when the default time is off.
+    static var timeOfDay: Date? {
+        let defaults = UserDefaults.standard
+        guard defaults.bool(forKey: timeEnabledKey) else { return nil }
+        let minutes = defaults.object(forKey: timeMinutesKey) as? Int ?? fallbackTimeMinutes
+        return Calendar.current.date(bySettingHour: minutes / 60, minute: minutes % 60, second: 0, of: Date())
+    }
+
+    /// nil = system default sound.
 
     static var soundName: String? {
         let value = UserDefaults.standard.string(forKey: soundKey)

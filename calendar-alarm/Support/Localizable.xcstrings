@@ -616,6 +616,50 @@
           }
         }
       }
+    },
+    "Default Time": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เวลาเริ่มต้น"
+          }
+        }
+      }
+    },
+    "Use a default time": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้เวลาเริ่มต้น"
+          }
+        }
+      }
+    },
+    "Time": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เวลา"
+          }
+        }
+      }
+    },
+    "New alarms start at this time. You can still change the time for each alarm.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การปลุกใหม่จะเริ่มที่เวลานี้ และยังเปลี่ยนเวลาของแต่ละการปลุกได้"
+          }
+        }
+      }
     }
   },
   "version": "1.0"
