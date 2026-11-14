@@ -61,17 +61,13 @@ struct AlarmsView: View {
             } action: { width in
                 containerWidth = width
             }
+            // The system places bar items itself, so on the iPhone Duo outer
+            // display Settings moves into the trailing side column.
+            .navigationTitle(Text("Alarms"))
+            // inlineLarge keeps the large title on the gear's line; the default
+            // large title sits on its own row below the toolbar items.
+            .toolbarTitleDisplayMode(.inlineLarge)
             .toolbar {
-                // The system places toolbar items itself, so on the iPhone Duo
-                // outer display Settings moves into the trailing side column.
-                // The title is a leading item too so it shares the gear's line
-                // (a navigation title would sit on its own row below it).
-                ToolbarItem(placement: .topBarLeading) {
-                    Text("Alarms")
-                        .font(.system(size: 34, weight: .bold, design: .rounded))
-                        .foregroundStyle(Theme.text)
-                }
-                .sharedBackgroundVisibility(.hidden)
                 ToolbarItem(placement: .topBarTrailing) {
                     Button {
                         showSettings = true
@@ -82,7 +78,6 @@ struct AlarmsView: View {
                     .accessibilityLabel(Text("Settings"))
                 }
             }
-            .toolbarTitleDisplayMode(.inline)
             .overlay(alignment: addButtonAlignment) {
                 // Floating add button — the toolbar hosts Settings instead.
                 Button {
