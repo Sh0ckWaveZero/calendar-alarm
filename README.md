@@ -19,18 +19,36 @@ Create an alarm by picking a time — that's it. Alarms ring through the system 
   </tr>
 </table>
 
-iPhone Duo closed (outer display):
-
-<img src="docs/screenshots/duo-closed-month.png" width="260" alt="Month view on iPhone Duo outer display">
-
-iPhone Duo open (inner display) — calendar beside the alarm list:
-
-<img src="docs/screenshots/duo-open-month.png" width="640" alt="Month view on iPhone Duo inner display">
+iPhone Duo closed (outer display). The large title stays in the content column. Settings, and the back button of a pushed screen, sit in the trailing side column:
 
 <table>
   <tr>
-    <td align="center"><img src="docs/screenshots/duo-open-week.png" width="400" alt="Week view on iPhone Duo inner display"><br>Week</td>
-    <td align="center"><img src="docs/screenshots/duo-open-list.png" width="400" alt="List view on iPhone Duo inner display"><br>List</td>
+    <td align="center"><img src="docs/screenshots/duo-closed-list.png" width="200" alt="List view on the iPhone Duo outer display"><br>List</td>
+    <td align="center"><img src="docs/screenshots/duo-closed-month.png" width="200" alt="Month view on the iPhone Duo outer display"><br>Month</td>
+    <td align="center"><img src="docs/screenshots/duo-closed-week.png" width="200" alt="Week view on the iPhone Duo outer display"><br>Week</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/duo-closed-new-alarm.png" width="200" alt="New alarm sheet on the iPhone Duo outer display"><br>New alarm</td>
+    <td align="center"><img src="docs/screenshots/duo-closed-sounds.png" width="200" alt="Sound list on the iPhone Duo outer display"><br>Sounds</td>
+    <td align="center"><img src="docs/screenshots/duo-closed-settings.png" width="200" alt="Settings on the iPhone Duo outer display"><br>Settings</td>
+  </tr>
+</table>
+
+iPhone Duo open (inner display). Month and Week put the calendar beside the alarm list. Sheets stay centered, and the side column stays visible behind them:
+
+<img src="docs/screenshots/duo-open-month.png" width="640" alt="Month view on the iPhone Duo inner display">
+
+<table>
+  <tr>
+    <td align="center"><img src="docs/screenshots/duo-open-week.png" width="400" alt="Week view on the iPhone Duo inner display"><br>Week</td>
+    <td align="center"><img src="docs/screenshots/duo-open-list.png" width="400" alt="List view on the iPhone Duo inner display"><br>List</td>
+  </tr>
+  <tr>
+    <td align="center"><img src="docs/screenshots/duo-open-new-alarm.png" width="400" alt="New alarm sheet on the iPhone Duo inner display"><br>New alarm</td>
+    <td align="center"><img src="docs/screenshots/duo-open-settings.png" width="400" alt="Settings on the iPhone Duo inner display"><br>Settings</td>
+  </tr>
+  <tr>
+    <td align="center" colspan="2"><img src="docs/screenshots/duo-open-sounds.png" width="400" alt="Sound list on the iPhone Duo inner display"><br>Sounds</td>
   </tr>
 </table>
 
@@ -125,7 +143,8 @@ The app stays iPhone-only (`TARGETED_DEVICE_FAMILY = 1`) but adapts to the iPhon
 
 Layout rules:
 
-- **Decide layout from available space** — `AlarmsView` measures its width with `onGeometryChange`; at 600pt or wider, Month/Week show the calendar beside the alarm list. Never use `UIScreen.main`, `userInterfaceIdiom`, interface orientation, or device sizes — the app is resized mid-session when iPhone Duo opens, closes, or folds.
+- **Settings is a system toolbar item** — the screen title is a navigation title in `inlineLarge` mode, and the gear is a `.topBarTrailing` button. On iPhone they share one line. On iPhone Duo the system moves that trailing item into the side column, under the clock, on both the outer and the inner display. A back button on a pushed screen goes there too. Keep the title a navigation title: a leading toolbar title was truncated to an ellipsis on iPhone.
+- **Decide layout from available space** — `AlarmsView` measures its width with `onGeometryChange`; at 600pt or wider, Month/Week show the calendar beside the alarm list. Never use `UIScreen.main`, `userInterfaceIdiom`, interface orientation, or device sizes — the app is resized mid-session when iPhone Duo opens, closes, or folds. The half-folded pose keeps this wide layout.
 - **`ArrangementView` is iOS 27.1+** — it splits the calendar and list along the fold. Keep the `HStack` fallback for older iOS (deployment target is still 26.1), and don't place an `ArrangementView` inside a `List` or `ScrollView`.
 - **Build with Xcode 27.1+** — older SDKs leave the app short of the status bar and camera on the inner display.
 
@@ -134,7 +153,7 @@ Testing:
 - The iPhone Duo simulator needs the iOS 27.1 simulator runtime (`xcodebuild -downloadPlatform iOS`).
 - Open, close, rotate, and fold only from **Device Hub** in Xcode — `simctl` has no posture command.
 - `simctl io <device> screenshot --display=3 out.png` captures the inner display (`--display=1` is the outer one).
-- Known gap: the half-folded pose has not been verified — Device Hub's fold didn't reach the simulator (its hinge log stayed `OpenFlat`), so check the fold on a real device.
+- Closed, open, and half-folded were checked on the iPhone Duo simulator.
 
 ## Notes
 
