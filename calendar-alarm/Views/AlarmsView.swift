@@ -39,7 +39,6 @@ struct AlarmsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                headerRow
                 displayModePicker
                 ZStack {
                     Group {
@@ -62,9 +61,30 @@ struct AlarmsView: View {
             } action: { width in
                 containerWidth = width
             }
-            .toolbar(.hidden, for: .navigationBar)
+            .toolbar {
+                // The system places toolbar items itself, so on the iPhone Duo
+                // outer display Settings moves into the trailing side column.
+                // The title is a leading item too so it shares the gear's line
+                // (a navigation title would sit on its own row below it).
+                ToolbarItem(placement: .topBarLeading) {
+                    Text("Alarms")
+                        .font(.system(size: 34, weight: .bold, design: .rounded))
+                        .foregroundStyle(Theme.text)
+                }
+                .sharedBackgroundVisibility(.hidden)
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .foregroundStyle(Theme.text)
+                    }
+                    .accessibilityLabel(Text("Settings"))
+                }
+            }
+            .toolbarTitleDisplayMode(.inline)
             .overlay(alignment: addButtonAlignment) {
-                // Floating add button — the header hosts Settings instead.
+                // Floating add button — the toolbar hosts Settings instead.
                 Button {
                     prepareAddTargetDay()
                     showAddSheet = true
@@ -115,30 +135,6 @@ struct AlarmsView: View {
             handleDemoArguments()
             #endif
         }
-    }
-
-    /// Large title with the Settings button on the same line (iOS 26 pushes
-    /// toolbar items above the title, so the header is drawn here instead).
-    private var headerRow: some View {
-        HStack {
-            Text("Alarms")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(Theme.text)
-            Spacer()
-            Button {
-                showSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(Theme.text)
-                    .frame(width: 42, height: 42)
-                    .background(Circle().fill(Theme.card))
-            }
-            .accessibilityLabel(Text("Settings"))
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
     }
 
     private var displayModePicker: some View {
