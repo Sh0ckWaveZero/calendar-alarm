@@ -40,48 +40,14 @@ struct AlarmEditSheet: View {
 
     var body: some View {
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 12) {
-                    DatePicker(
-                        "",
-                        selection: $timeOfDay,
-                        in: timeRange,
-                        displayedComponents: [.hourAndMinute]
-                    )
-                    .datePickerStyle(.wheel)
-                    .labelsHidden()
-                    // Picking today while a past time is set bumps the wheel
-                    // to the earliest valid time.
-                    .onChange(of: selectedDays) { bumpPassedTime() }
-
-                    calendarCard
-
-                    SoundPickerRow(title: Text("Sound"), selection: $soundName)
-
-                    if selectedDays.isEmpty {
-                        Text("Select at least one day.")
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    } else if isPassed {
-                        Text("This time has already passed.")
-                            .font(.footnote)
-                            .foregroundStyle(.red)
-                    }
-
-                    if item != nil {
-                        Button(role: .destructive) {
-                            Task {
-                                await viewModel.deleteAlarm(item!)
-                                dismiss()
-                            }
-                        } label: {
-                            Text("Delete Alarm")
-                        }
-                        .padding(.top, 8)
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.bottom, 24)
+            // The iPhone Duo outer display is 678pt tall. A full 216pt wheel
+            // plus the month grid runs past the bottom and the last week is
+            // clipped, so take the first stack that fits and scroll only then.
+            ViewThatFits(in: .vertical) {
+                editor(wheelHeight: 216)
+                editor(wheelHeight: 140)
+                editor(wheelHeight: 96)
+                ScrollView { editor(wheelHeight: 96) }
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
             .background(Theme.background)
@@ -107,6 +73,55 @@ struct AlarmEditSheet: View {
             }
             .onAppear(perform: seedValues)
         }
+        .presentationSizing(.page)
+        .presentationDetents([.large])
+        .presentationContentInteraction(.scrolls)
+    }
+
+    private func editor(wheelHeight: CGFloat) -> some View {
+        VStack(spacing: 8) {
+            DatePicker(
+                "",
+                selection: $timeOfDay,
+                in: timeRange,
+                displayedComponents: [.hourAndMinute]
+            )
+            .datePickerStyle(.wheel)
+            .labelsHidden()
+            .frame(height: wheelHeight)
+            .clipped()
+            // Picking today while a past time is set bumps the wheel
+            // to the earliest valid time.
+            .onChange(of: selectedDays) { bumpPassedTime() }
+
+            calendarCard
+
+            SoundPickerRow(title: Text("Sound"), selection: $soundName)
+
+            if selectedDays.isEmpty {
+                Text("Select at least one day.")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            } else if isPassed {
+                Text("This time has already passed.")
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+            }
+
+            if item != nil {
+                Button(role: .destructive) {
+                    Task {
+                        await viewModel.deleteAlarm(item!)
+                        dismiss()
+                    }
+                } label: {
+                    Text("Delete Alarm")
+                }
+                .padding(.top, 8)
+            }
+        }
+        .padding(.horizontal, 20)
+        .padding(.bottom, 8)
     }
 
     /// Fire day(s) on the app's own month grid, so alarm and holiday dots show
@@ -140,7 +155,7 @@ struct AlarmEditSheet: View {
                     .padding(.horizontal, 16)
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 4)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
         .task(id: monthCursor) {

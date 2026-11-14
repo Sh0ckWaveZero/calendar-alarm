@@ -107,6 +107,9 @@ struct SettingsSheet: View {
                 }
             }
         }
+        .presentationSizing(.page)
+        .presentationDetents([.large])
+        .presentationContentInteraction(.scrolls)
     }
 
     @ViewBuilder
