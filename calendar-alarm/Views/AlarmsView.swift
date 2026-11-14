@@ -20,6 +20,10 @@ struct AlarmsView: View {
     @AppStorage("addButtonSide") private var addButtonSide = "left"
     /// Available width — iPhone Duo resizes the app mid-session on fold/unfold.
     @State private var containerWidth: CGFloat = 0
+    /// On-screen frames of the alarm rows, in global coordinates.
+    @State private var rowFrames: [UUID: CGRect] = [:]
+    /// Whether the drag in progress began on an alarm row; nil between drags.
+    @State private var dragStartedOnRow: Bool?
 
     // Must match CalendarGridView's scaled metrics — they seed the pager height,
     // which then self-corrects from the page's measured layout height.
@@ -35,7 +39,6 @@ struct AlarmsView: View {
     var body: some View {
         NavigationStack {
             VStack(spacing: 0) {
-                headerRow
                 displayModePicker
                 ZStack {
                     Group {
@@ -58,9 +61,25 @@ struct AlarmsView: View {
             } action: { width in
                 containerWidth = width
             }
-            .toolbar(.hidden, for: .navigationBar)
+            // The system places bar items itself, so on the iPhone Duo outer
+            // display Settings moves into the trailing side column.
+            .navigationTitle(Text("Alarms"))
+            // inlineLarge keeps the large title on the gear's line; the default
+            // large title sits on its own row below the toolbar items.
+            .toolbarTitleDisplayMode(.inlineLarge)
+            .toolbar {
+                ToolbarItem(placement: .topBarTrailing) {
+                    Button {
+                        showSettings = true
+                    } label: {
+                        Image(systemName: "gearshape")
+                            .foregroundStyle(Theme.text)
+                    }
+                    .accessibilityLabel(Text("Settings"))
+                }
+            }
             .overlay(alignment: addButtonAlignment) {
-                // Floating add button — the header hosts Settings instead.
+                // Floating add button — the toolbar hosts Settings instead.
                 Button {
                     prepareAddTargetDay()
                     showAddSheet = true
@@ -80,15 +99,12 @@ struct AlarmsView: View {
         }
         .sheet(isPresented: $showSettings) {
             SettingsSheet()
-                .presentationDetents([.medium, .large])
         }
-        .sheet(item: $editingItem) { item in
+        .sheet(item: $editingItem, onDismiss: reloadVisibleHolidays) { item in
             AlarmEditSheet(item: item, viewModel: viewModel)
-                .presentationDetents([.medium])
         }
-        .sheet(isPresented: $showAddSheet) {
+        .sheet(isPresented: $showAddSheet, onDismiss: reloadVisibleHolidays) {
             AlarmEditSheet(item: nil, day: addTargetDay, seedTime: addSeedTime, viewModel: viewModel)
-                .presentationDetents([.medium])
         }
         .alert(
             "Alarm permission denied",
@@ -114,30 +130,6 @@ struct AlarmsView: View {
             handleDemoArguments()
             #endif
         }
-    }
-
-    /// Large title with the Settings button on the same line (iOS 26 pushes
-    /// toolbar items above the title, so the header is drawn here instead).
-    private var headerRow: some View {
-        HStack {
-            Text("Alarms")
-                .font(.system(size: 34, weight: .bold, design: .rounded))
-                .foregroundStyle(Theme.text)
-            Spacer()
-            Button {
-                showSettings = true
-            } label: {
-                Image(systemName: "gearshape")
-                    .font(.title3.weight(.medium))
-                    .foregroundStyle(Theme.text)
-                    .frame(width: 42, height: 42)
-                    .background(Circle().fill(Theme.card))
-            }
-            .accessibilityLabel(Text("Settings"))
-        }
-        .padding(.horizontal, 16)
-        .padding(.top, 8)
-        .padding(.bottom, 4)
     }
 
     private var displayModePicker: some View {
@@ -166,8 +158,21 @@ struct AlarmsView: View {
     }
 
     /// Horizontal swipe on the mode's list area switches List → Month → Week.
+    /// A swipe that starts on an alarm row belongs to the row's swipe-to-delete.
     private func modeSwipeGesture() -> some Gesture {
-        DragGesture(minimumDistance: 30).onEnded { value in
+        DragGesture(minimumDistance: 30, coordinateSpace: .global).onChanged { value in
+            // Decided while the drag is live: a full swipe deletes the row
+            // (and its frame) before the drag ends.
+            if dragStartedOnRow == nil {
+                // Height only: a row with its delete button showing sits
+                // shifted sideways, but the whole lane still belongs to it.
+                let y = value.startLocation.y
+                dragStartedOnRow = rowFrames.values.contains { $0.minY...$0.maxY ~= y }
+            }
+        }.onEnded { value in
+            let startedOnRow = dragStartedOnRow ?? false
+            dragStartedOnRow = nil
+            guard !startedOnRow else { return }
             let h = value.translation.width
             let v = value.translation.height
             guard abs(h) > 50, abs(h) > abs(v) * 2 else { return }
@@ -177,6 +182,13 @@ struct AlarmsView: View {
             guard order.indices.contains(next) else { return }
             switchMode(to: order[next])
         }
+    }
+
+    /// The alarm sheet pages its own calendar and may move the shared holiday
+    /// window away from the month or week shown here.
+    private func reloadVisibleHolidays() {
+        guard displayMode != .list else { return }
+        viewModel.loadHolidaysIfNeeded(around: displayMode == .month ? monthCursor : weekCursor)
     }
 
     /// In calendar modes, "+" adds an alarm on the selected day (when it's today or later).
@@ -189,6 +201,30 @@ struct AlarmsView: View {
         let today = Calendar.current.startOfDay(for: Date())
         let day = selectedDay ?? today
         addTargetDay = day >= today ? day : nil
+    }
+
+    /// Alarm row: tap to edit, swipe to delete. Reports its frame so the mode
+    /// swipe can leave drags that start on it alone.
+    private func alarmRow(_ item: AlarmItem) -> some View {
+        Button {
+            editingItem = item
+        } label: {
+            AlarmRow(item: item)
+        }
+        .buttonStyle(.plain)
+        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+            Button(role: .destructive) {
+                Task { await viewModel.deleteAlarm(item) }
+            } label: {
+                Label("Delete", systemImage: "trash")
+            }
+        }
+        .onGeometryChange(for: CGRect.self) { proxy in
+            proxy.frame(in: .global)
+        } action: { frame in
+            rowFrames[item.id] = frame
+        }
+        .onDisappear { rowFrames[item.id] = nil }
     }
 
     @ViewBuilder
@@ -213,13 +249,14 @@ struct AlarmsView: View {
         }
     }
 
-    /// Month/week calendar with the selected day's alarms and holidays listed underneath.
+    /// Month/week calendar with every alarm in the visible month/week listed
+    /// underneath, after the selected day's holidays.
     /// The grid sits OUTSIDE the List so swipes page it reliably; the day list below
     /// stays a List for swipe-to-delete.
     @ViewBuilder
     private func calendarContent(_ mode: DisplayMode) -> some View {
         let day = selectedDay ?? Calendar.current.startOfDay(for: Date())
-        let items = viewModel.items(on: day)
+        let periodSections = viewModel.sections(in: visiblePeriod(for: mode))
         let dayHolidays = viewModel.holidays(on: day)
         let cursor = mode == .month ? monthCursor : weekCursor
         let calendarColumn = VStack(spacing: 0) {
@@ -232,35 +269,13 @@ struct AlarmsView: View {
 
             pagedCalendar(mode: mode)
 
-            dotLegend
+            CalendarDotLegend()
                 .padding(.horizontal, 16)
                 .padding(.top, 2)
                 .padding(.bottom, 6)
         }
-        let dayList = List {
-                Section {
-                    ForEach(items) { item in
-                        Button {
-                            editingItem = item
-                        } label: {
-                            AlarmRow(item: item)
-                        }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                Task { await viewModel.deleteAlarm(item) }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
-                    }
-                } header: {
-                    DateUtil.heading(for: day)
-                } footer: {
-                    if items.isEmpty && dayHolidays.isEmpty {
-                        Text("No alarms on this day")
-                    }
-                }
+        let dayList = ScrollViewReader { proxy in
+            List {
                 if !dayHolidays.isEmpty {
                     Section {
                         ForEach(dayHolidays) { holiday in
@@ -289,10 +304,33 @@ struct AlarmsView: View {
                         Text("Tap a holiday to set an alarm for that day.")
                     }
                 }
+                ForEach(periodSections) { section in
+                    Section {
+                        ForEach(section.items) { item in
+                            alarmRow(item)
+                                .id(item.id)
+                        }
+                    } header: {
+                        DateUtil.heading(for: section.dayStart)
+                    }
+                }
+                if periodSections.isEmpty {
+                    Section {
+                    } footer: {
+                        mode == .month ? Text("No alarms this month") : Text("No alarms this week")
+                    }
+                }
             }
             .listStyle(.insetGrouped)
             .scrollContentBackground(.hidden)
             .simultaneousGesture(modeSwipeGesture())
+            .onChange(of: selectedDay) { _, newDay in
+                // Tapping a day in the grid brings its alarms into view.
+                guard let first = periodSections.first(where: { $0.dayStart == newDay })?.items.first else { return }
+                // Centered, so the day's header above the row stays visible.
+                withAnimation { proxy.scrollTo(first.id, anchor: .center) }
+            }
+        }
 
         Group {
             if usesSideBySideLayout {
@@ -328,6 +366,16 @@ struct AlarmsView: View {
         .background(Theme.background)
     }
 
+    /// The month or week the calendar currently shows.
+    private func visiblePeriod(for mode: DisplayMode) -> DateInterval {
+        let calendar = Calendar.current
+        if mode == .month, let month = calendar.dateInterval(of: .month, for: monthCursor) {
+            return month
+        }
+        let weekStart = Self.weekAnchor(of: weekCursor, calendar: calendar)
+        return DateInterval(start: weekStart, end: calendar.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart)
+    }
+
     /// Wide windows (iPhone Duo inner display, landscape) have room for the
     /// calendar and the day list side by side. Based on available space, not
     /// size class or device, per Apple's iPhone Duo guidance.
@@ -337,22 +385,6 @@ struct AlarmsView: View {
 
     private var calendarColumnWidth: CGFloat {
         min(420, containerWidth * 0.5)
-    }
-
-    /// Explains the dot colors — a quiet footnote under the grid card.
-    private var dotLegend: some View {
-        HStack(spacing: 14) {
-            HStack(spacing: 5) {
-                Circle().fill(Theme.bellOn).frame(width: 7, height: 7)
-                Text("Alarm")
-            }
-            HStack(spacing: 5) {
-                Circle().fill(Theme.danger).frame(width: 7, height: 7)
-                Text("Holiday")
-            }
-        }
-        .font(.caption2)
-        .foregroundStyle(Theme.subtext)
     }
 
     /// Direction-aware slide (swipe left → new month enters from the right).
@@ -399,7 +431,8 @@ struct AlarmsView: View {
                         cursor: anchor,
                         alarmDays: viewModel.daysWithAlarms,
                         holidayDays: holidayDays,
-                        selection: $selectedDay,
+                        selectedDays: selectedDay.map { [$0] } ?? [],
+                        onSelect: { selectedDay = $0 },
                         onPageHeightChanged: { monthPageHeight = $0 }
                     )
                     .tag(anchor)
@@ -425,7 +458,8 @@ struct AlarmsView: View {
                         cursor: anchor,
                         alarmDays: viewModel.daysWithAlarms,
                         holidayDays: holidayDays,
-                        selection: $selectedDay,
+                        selectedDays: selectedDay.map { [$0] } ?? [],
+                        onSelect: { selectedDay = $0 },
                         onPageHeightChanged: { weekPageHeight = $0 }
                     )
                     .tag(anchor)
@@ -498,19 +532,7 @@ struct AlarmsView: View {
             ForEach(viewModel.sections) { section in
                 Section {
                     ForEach(section.items) { item in
-                        Button {
-                            editingItem = item
-                        } label: {
-                            AlarmRow(item: item)
-                        }
-                        .buttonStyle(.plain)
-                        .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                            Button(role: .destructive) {
-                                Task { await viewModel.deleteAlarm(item) }
-                            } label: {
-                                Label("Delete", systemImage: "trash")
-                            }
-                        }
+                        alarmRow(item)
                     }
                 } header: {
                     DateUtil.heading(for: section.dayStart)

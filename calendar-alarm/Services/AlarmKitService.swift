@@ -122,6 +122,7 @@ final class AlarmKitService: AlarmScheduling {
         )
         let sound: AlertConfiguration.AlertSound
         if let soundName, !soundName.isEmpty {
+            SoundCatalog.install(soundName.hasSuffix(".caf") ? String(soundName.dropLast(4)) : soundName)
             // The daemon resolves named sounds against Library/Sounds by literal
             // filename — the extension must be included or the lookup returns nil
             // and the alarm falls back to the default sound (verified via

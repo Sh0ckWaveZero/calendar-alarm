@@ -21,7 +21,7 @@ struct CreateAlarmIntent: AppIntent {
             context: context ?? Persistence.context,
             scheduler: scheduler ?? AlarmKitService.shared
         )
-        await viewModel.addAlarm(timeOfDay: time)
+        await viewModel.addAlarm(timeOfDay: time, soundName: AlarmDefaults.soundName)
         let timeText = time.formatted(date: .omitted, time: .shortened)
         return .result(dialog: IntentDialog("Alarm set for \(timeText)"))
     }

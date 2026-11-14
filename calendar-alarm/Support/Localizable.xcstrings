@@ -507,17 +507,6 @@
         }
       }
     },
-    "No alarms on this day": {
-      "extractionState": "manual",
-      "localizations": {
-        "th": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "ไม่มีการปลุกในวันนี้"
-          }
-        }
-      }
-    },
     "Sound": {
       "extractionState": "manual",
       "localizations": {
@@ -536,6 +525,149 @@
           "stringUnit": {
             "state": "translated",
             "value": "ค่าเริ่มต้น"
+          }
+        }
+      }
+    },
+    "Select at least one day.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกอย่างน้อย 1 วัน"
+          }
+        }
+      }
+    },
+    "Pick one or more days. An alarm is created for each day.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เลือกได้หลายวัน ระบบจะสร้างการปลุกให้ทุกวันที่เลือก"
+          }
+        }
+      }
+    },
+    "Default Sound": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสียงเริ่มต้น"
+          }
+        }
+      }
+    },
+    "Used for new alarms. You can still change the sound for each alarm.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้กับการปลุกใหม่ และยังเปลี่ยนเสียงของแต่ละการปลุกได้"
+          }
+        }
+      }
+    },
+    "App Sounds": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสียงในแอป"
+          }
+        }
+      }
+    },
+    "iOS Ringtones": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสียงเรียกเข้า iOS"
+          }
+        }
+      }
+    },
+    "iOS Sounds": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เสียงระบบ iOS"
+          }
+        }
+      }
+    },
+    "Default Time": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เวลาเริ่มต้น"
+          }
+        }
+      }
+    },
+    "Use a default time": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ใช้เวลาเริ่มต้น"
+          }
+        }
+      }
+    },
+    "Time": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "เวลา"
+          }
+        }
+      }
+    },
+    "New alarms start at this time. You can still change the time for each alarm.": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "การปลุกใหม่จะเริ่มที่เวลานี้ และยังเปลี่ยนเวลาของแต่ละการปลุกได้"
+          }
+        }
+      }
+    },
+    "No alarms this month": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่มีการปลุกในเดือนนี้"
+          }
+        }
+      }
+    },
+    "No alarms this week": {
+      "extractionState": "manual",
+      "localizations": {
+        "th": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ไม่มีการปลุกในสัปดาห์นี้"
           }
         }
       }

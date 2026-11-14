@@ -21,7 +21,6 @@ final class AlarmsViewModel: ObservableObject {
     let scheduler: AlarmScheduling
     private let context: ModelContext
     private let holidayService: HolidayService
-    private var upcomingItems: [AlarmItem] = []
     private var holidayWindow: DateInterval?
     private var holidayLoadTask: Task<Void, Never>?
 
@@ -69,7 +68,6 @@ final class AlarmsViewModel: ObservableObject {
     }
 
     private func reloadSections(from upcoming: [AlarmItem]) {
-        upcomingItems = upcoming
         daysWithAlarms = Set(upcoming.map { Calendar.current.startOfDay(for: $0.time) })
         let grouped = Dictionary(grouping: upcoming) { item in
             Calendar.current.startOfDay(for: item.time)
@@ -90,12 +88,9 @@ final class AlarmsViewModel: ObservableObject {
         return (try? context.fetch(descriptor)) ?? []
     }
 
-    /// Alarms firing on the given day, oldest first (for the calendar day list).
-    func items(on day: Date) -> [AlarmItem] {
-        let target = Calendar.current.startOfDay(for: day)
-        return upcomingItems
-            .filter { Calendar.current.isDate($0.time, inSameDayAs: target) }
-            .sorted { $0.time < $1.time }
+    /// Day-sections whose day falls inside `period` (the calendar's visible month or week).
+    func sections(in period: DateInterval) -> [AlarmSection] {
+        sections.filter { $0.dayStart >= period.start && $0.dayStart < period.end }
     }
 
     /// Holidays on the given day (for the calendar day list).
@@ -135,16 +130,34 @@ final class AlarmsViewModel: ObservableObject {
         } else {
             fireDate = DateUtil.nextOccurrence(of: timeOfDay)
         }
-        let item = AlarmItem(time: fireDate, soundName: soundName)
-        context.insert(item)
+        await insertAlarms(firing: [fireDate], soundName: soundName)
+    }
+
+    /// Creates one alarm per picked day, all at the same time-of-day.
+    func addAlarms(timeOfDay: Date, days: [Date], soundName: String? = nil) async {
+        let uniqueDays = Set(days.map { Calendar.current.startOfDay(for: $0) }).sorted()
+        await insertAlarms(
+            firing: uniqueDays.map { DateUtil.combine(day: $0, timeOfDay: timeOfDay) },
+            soundName: soundName
+        )
+    }
+
+    private func insertAlarms(firing fireDates: [Date], soundName: String?) async {
+        let items = fireDates.map { AlarmItem(time: $0, soundName: soundName) }
+        for item in items {
+            context.insert(item)
+        }
         try? context.save()
-        await schedule(item)
+        for item in items {
+            await schedule(item)
+        }
         reloadSections()
     }
 
-    /// Reschedules an existing alarm, keeping its day and applying the picked time-of-day and sound.
-    func updateAlarm(_ item: AlarmItem, timeOfDay: Date, soundName: String? = nil) async {
-        let newTime = DateUtil.combine(day: item.time, timeOfDay: timeOfDay)
+    /// Reschedules an existing alarm with the picked time-of-day and sound,
+    /// on `day` when given, otherwise on the day it already had.
+    func updateAlarm(_ item: AlarmItem, timeOfDay: Date, day: Date? = nil, soundName: String? = nil) async {
+        let newTime = DateUtil.combine(day: day ?? item.time, timeOfDay: timeOfDay)
         guard newTime != item.time || soundName != item.soundName else { return }
         if let oldId = item.alarmId {
             try? await scheduler.cancelEventAlarm(oldId)
