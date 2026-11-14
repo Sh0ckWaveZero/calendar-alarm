@@ -85,10 +85,10 @@ struct AlarmsView: View {
         .sheet(isPresented: $showSettings) {
             SettingsSheet()
         }
-        .sheet(item: $editingItem) { item in
+        .sheet(item: $editingItem, onDismiss: reloadVisibleHolidays) { item in
             AlarmEditSheet(item: item, viewModel: viewModel)
         }
-        .sheet(isPresented: $showAddSheet) {
+        .sheet(isPresented: $showAddSheet, onDismiss: reloadVisibleHolidays) {
             AlarmEditSheet(item: nil, day: addTargetDay, seedTime: addSeedTime, viewModel: viewModel)
         }
         .alert(
@@ -193,6 +193,13 @@ struct AlarmsView: View {
         }
     }
 
+    /// The alarm sheet pages its own calendar and may move the shared holiday
+    /// window away from the month or week shown here.
+    private func reloadVisibleHolidays() {
+        guard displayMode != .list else { return }
+        viewModel.loadHolidaysIfNeeded(around: displayMode == .month ? monthCursor : weekCursor)
+    }
+
     /// In calendar modes, "+" adds an alarm on the selected day (when it's today or later).
     private func prepareAddTargetDay() {
         addSeedTime = nil
@@ -270,7 +277,7 @@ struct AlarmsView: View {
 
             pagedCalendar(mode: mode)
 
-            dotLegend
+            CalendarDotLegend()
                 .padding(.horizontal, 16)
                 .padding(.top, 2)
                 .padding(.bottom, 6)
@@ -365,22 +372,6 @@ struct AlarmsView: View {
         min(420, containerWidth * 0.5)
     }
 
-    /// Explains the dot colors — a quiet footnote under the grid card.
-    private var dotLegend: some View {
-        HStack(spacing: 14) {
-            HStack(spacing: 5) {
-                Circle().fill(Theme.bellOn).frame(width: 7, height: 7)
-                Text("Alarm")
-            }
-            HStack(spacing: 5) {
-                Circle().fill(Theme.danger).frame(width: 7, height: 7)
-                Text("Holiday")
-            }
-        }
-        .font(.caption2)
-        .foregroundStyle(Theme.subtext)
-    }
-
     /// Direction-aware slide (swipe left → new month enters from the right).
     private var pageTransition: AnyTransition {
         .asymmetric(
@@ -425,7 +416,8 @@ struct AlarmsView: View {
                         cursor: anchor,
                         alarmDays: viewModel.daysWithAlarms,
                         holidayDays: holidayDays,
-                        selection: $selectedDay,
+                        selectedDays: selectedDay.map { [$0] } ?? [],
+                        onSelect: { selectedDay = $0 },
                         onPageHeightChanged: { monthPageHeight = $0 }
                     )
                     .tag(anchor)
@@ -451,7 +443,8 @@ struct AlarmsView: View {
                         cursor: anchor,
                         alarmDays: viewModel.daysWithAlarms,
                         holidayDays: holidayDays,
-                        selection: $selectedDay,
+                        selectedDays: selectedDay.map { [$0] } ?? [],
+                        onSelect: { selectedDay = $0 },
                         onPageHeightChanged: { weekPageHeight = $0 }
                     )
                     .tag(anchor)

@@ -71,7 +71,7 @@ struct CalendarHeaderView: View {
 }
 
 /// One calendar page: weekday symbols plus the day grid for `cursor`'s month/week.
-/// Days with alarms get a bell-colored dot; holidays a red dot; the selected day
+/// Days with alarms get a bell-colored dot; holidays a red dot; selected days
 /// a filled circle. Slid by a TabView in the parent — never handles its own swipe.
 struct CalendarGridView: View {
     let mode: CalendarDisplayMode
@@ -79,7 +79,11 @@ struct CalendarGridView: View {
     let cursor: Date
     let alarmDays: Set<Date>
     let holidayDays: Set<Date>
-    @Binding var selection: Date?
+    /// Start-of-day dates drawn as selected.
+    let selectedDays: Set<Date>
+    /// Days before this one are dimmed and can't be tapped.
+    var minimumDay: Date? = nil
+    var onSelect: (Date) -> Void
     /// Reports this page's laid-out height so the pager can size itself exactly.
     var onPageHeightChanged: (CGFloat) -> Void = { _ in }
 
@@ -138,20 +142,21 @@ struct CalendarGridView: View {
     @ViewBuilder
     private func cell(for day: Date) -> some View {
         let dayStart = calendar.startOfDay(for: day)
-        let isSelected = selection == dayStart
+        let isSelected = selectedDays.contains(dayStart)
+        let isSelectable = minimumDay.map { dayStart >= $0 } ?? true
         let isToday = dayStart == calendar.startOfDay(for: Date())
         let hasAlarm = alarmDays.contains(dayStart)
         let hasHoliday = holidayDays.contains(dayStart)
         let inScope = calendar.isDate(day, equalTo: cursor, toGranularity: mode == .month ? .month : .weekOfYear)
 
         Button {
-            selection = dayStart
+            onSelect(dayStart)
         } label: {
             VStack(spacing: 3) {
                 Text("\(calendar.component(.day, from: day))")
                     .font(.subheadline.monospacedDigit())
                     .fontWeight(isToday ? .bold : .regular)
-                    .foregroundStyle(isSelected ? Color.white : (inScope ? Theme.text : Theme.subtext.opacity(0.5)))
+                    .foregroundStyle(isSelected ? Color.white : (inScope && isSelectable ? Theme.text : Theme.subtext.opacity(0.5)))
                     .frame(width: cellSize, height: cellSize)
                     .background {
                         if isSelected {
@@ -173,5 +178,24 @@ struct CalendarGridView: View {
             }
         }
         .buttonStyle(.plain)
+        .disabled(!isSelectable)
+    }
+}
+
+/// Explains the dot colors — a quiet footnote under a calendar grid.
+struct CalendarDotLegend: View {
+    var body: some View {
+        HStack(spacing: 14) {
+            HStack(spacing: 5) {
+                Circle().fill(Theme.bellOn).frame(width: 7, height: 7)
+                Text("Alarm")
+            }
+            HStack(spacing: 5) {
+                Circle().fill(Theme.danger).frame(width: 7, height: 7)
+                Text("Holiday")
+            }
+        }
+        .font(.caption2)
+        .foregroundStyle(Theme.subtext)
     }
 }

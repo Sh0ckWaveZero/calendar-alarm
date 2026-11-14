@@ -14,22 +14,16 @@ struct AlarmEditSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     @State private var timeOfDay: Date = Date()
-    @State private var targetDays: Set<DateComponents> = []
-    @State private var editDay: Date = Date()
+    /// Start-of-day fire days. Adding toggles any number; editing holds one.
+    @State private var selectedDays: Set<Date> = []
+    @State private var monthCursor = Date()
     @State private var soundName: String?
     @State private var isLoaded = false
 
-    private static let dayComponents: Set<Calendar.Component> = [.calendar, .era, .year, .month, .day]
+    private var sortedDays: [Date] { selectedDays.sorted() }
 
-    /// Picked fire days, earliest first (new alarms only).
-    private var sortedDays: [Date] {
-        targetDays.compactMap { Calendar.current.date(from: $0) }.sorted()
-    }
-
-    /// Editing has one day; adding is judged by the earliest picked day.
-    private var earliestDay: Date? {
-        item == nil ? sortedDays.first : editDay
-    }
+    /// The time wheel and the "already passed" check follow the earliest day.
+    private var earliestDay: Date? { sortedDays.first }
 
     private var isPassed: Bool {
         guard let earliestDay else { return false }
@@ -58,14 +52,13 @@ struct AlarmEditSheet: View {
                     .labelsHidden()
                     // Picking today while a past time is set bumps the wheel
                     // to the earliest valid time.
-                    .onChange(of: targetDays) { bumpPassedTime() }
-                    .onChange(of: editDay) { bumpPassedTime() }
+                    .onChange(of: selectedDays) { bumpPassedTime() }
 
                     calendarCard
 
                     SoundPickerRow(title: Text("Sound"), selection: $soundName)
 
-                    if item == nil && targetDays.isEmpty {
+                    if selectedDays.isEmpty {
                         Text("Select at least one day.")
                             .font(.footnote)
                             .foregroundStyle(.red)
@@ -102,39 +95,71 @@ struct AlarmEditSheet: View {
                     Button("Save") {
                         Task {
                             if let item {
-                                await viewModel.updateAlarm(item, timeOfDay: timeOfDay, day: editDay, soundName: soundName)
+                                await viewModel.updateAlarm(item, timeOfDay: timeOfDay, day: earliestDay, soundName: soundName)
                             } else {
                                 await viewModel.addAlarms(timeOfDay: timeOfDay, days: sortedDays, soundName: soundName)
                             }
                             dismiss()
                         }
                     }
-                    .disabled(isPassed || (item == nil && targetDays.isEmpty))
+                    .disabled(isPassed || selectedDays.isEmpty)
                 }
             }
             .onAppear(perform: seedValues)
         }
     }
 
-    /// Fire day(s): adding picks any number of days, editing moves the one day.
+    /// Fire day(s) on the app's own month grid, so alarm and holiday dots show
+    /// while picking. Adding toggles days; editing moves the single day.
     private var calendarCard: some View {
-        let today = Calendar.current.startOfDay(for: Date())
-        return VStack(alignment: .leading, spacing: 8) {
+        let calendar = Calendar.current
+        let today = calendar.startOfDay(for: Date())
+        let isCurrentMonth = calendar.isDate(monthCursor, equalTo: today, toGranularity: .month)
+        return VStack(alignment: .leading, spacing: 6) {
+            CalendarHeaderView(
+                title: CalendarHeaderView.title(for: .month, cursor: monthCursor),
+                onToday: { monthCursor = today },
+                onPrevious: { if !isCurrentMonth { moveMonth(by: -1) } },
+                onNext: { moveMonth(by: 1) }
+            )
+            CalendarGridView(
+                mode: .month,
+                cursor: monthCursor,
+                alarmDays: viewModel.daysWithAlarms,
+                holidayDays: Set(viewModel.holidays.map(\.date)),
+                selectedDays: selectedDays,
+                minimumDay: today,
+                onSelect: select
+            )
+            CalendarDotLegend()
+                .padding(.horizontal, 16)
             if item == nil {
-                MultiDatePicker("Date", selection: $targetDays, in: today...)
                 Text("Pick one or more days. An alarm is created for each day.")
                     .font(.caption)
                     .foregroundStyle(Theme.subtext)
-            } else {
-                DatePicker("Date", selection: $editDay, in: today..., displayedComponents: [.date])
-                    .datePickerStyle(.graphical)
+                    .padding(.horizontal, 16)
             }
         }
-        .tint(Theme.accent)
-        .padding(.horizontal, 14)
         .padding(.vertical, 10)
         .background(Theme.card)
         .clipShape(RoundedRectangle(cornerRadius: 14))
+        .task(id: monthCursor) {
+            viewModel.loadHolidaysIfNeeded(around: monthCursor)
+        }
+    }
+
+    private func select(_ day: Date) {
+        if item != nil {
+            selectedDays = [day]
+        } else if selectedDays.contains(day) {
+            selectedDays.remove(day)
+        } else {
+            selectedDays.insert(day)
+        }
+    }
+
+    private func moveMonth(by value: Int) {
+        monthCursor = Calendar.current.date(byAdding: .month, value: value, to: monthCursor) ?? monthCursor
     }
 
     private func bumpPassedTime() {
@@ -149,7 +174,9 @@ struct AlarmEditSheet: View {
         if let item {
             timeOfDay = item.time
             // An alarm that already fired today can only move forward.
-            editDay = max(item.time, Calendar.current.startOfDay(for: Date()))
+            let editDay = Calendar.current.startOfDay(for: max(item.time, Date()))
+            selectedDays = [editDay]
+            monthCursor = editDay
             soundName = item.soundName
         } else {
             var time = seedTime ?? AlarmDefaults.timeOfDay ?? Date().addingTimeInterval(3600)
@@ -164,7 +191,8 @@ struct AlarmEditSheet: View {
                 }
             }
             timeOfDay = time
-            targetDays = [Calendar.current.dateComponents(Self.dayComponents, from: seedDay)]
+            selectedDays = [Calendar.current.startOfDay(for: seedDay)]
+            monthCursor = seedDay
             soundName = AlarmDefaults.soundName
         }
     }
