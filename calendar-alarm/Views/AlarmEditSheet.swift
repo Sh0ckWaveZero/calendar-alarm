@@ -16,6 +16,10 @@ struct AlarmEditSheet: View {
     @State private var timeOfDay: Date = Date()
     /// Start-of-day fire days. Adding toggles any number; editing holds one.
     @State private var selectedDays: Set<Date> = []
+    /// True while adding from the list with a start time that already passed
+    /// today: no day was picked, so the alarm fires at the wheel time's next
+    /// occurrence until the time is ahead today again (or a day is tapped).
+    @State private var dayFollowsTime = false
     @State private var monthCursor = Date()
     @State private var soundName: String?
     @State private var isLoaded = false
@@ -93,6 +97,7 @@ struct AlarmEditSheet: View {
             // Picking today while a past time is set bumps the wheel
             // to the earliest valid time.
             .onChange(of: selectedDays) { bumpPassedTime() }
+            .onChange(of: timeOfDay) { followTime() }
 
             calendarCard
 
@@ -163,8 +168,26 @@ struct AlarmEditSheet: View {
         }
     }
 
+    /// While the day follows the wheel time, the alarm lands on that time's
+    /// next occurrence. A time still ahead today pins it to today, so the
+    /// clock running past the time can only disable Save, never move the day.
+    private func followTime() {
+        guard dayFollowsTime else { return }
+        let calendar = Calendar.current
+        let next = DateUtil.nextOccurrence(of: timeOfDay)
+        if calendar.isDateInToday(next) { dayFollowsTime = false }
+        let day = calendar.startOfDay(for: next)
+        if !calendar.isDate(monthCursor, equalTo: day, toGranularity: .month) { monthCursor = day }
+        selectedDays = [day]
+    }
+
     private func select(_ day: Date) {
         if item != nil {
+            selectedDays = [day]
+        } else if dayFollowsTime {
+            // The followed day was never picked: a tap replaces it, and the
+            // alarm stops following the wheel time.
+            dayFollowsTime = false
             selectedDays = [day]
         } else if selectedDays.contains(day) {
             selectedDays.remove(day)
@@ -195,19 +218,23 @@ struct AlarmEditSheet: View {
             soundName = item.soundName
         } else {
             var time = seedTime ?? AlarmDefaults.timeOfDay ?? Date().addingTimeInterval(3600)
-            var seedDay = day ?? Date()
-            if DateUtil.combine(day: seedDay, timeOfDay: time) <= Date() {
-                // The seeded time already passed today: without a picked day
-                // the alarm moves to tomorrow, otherwise the time moves ahead.
-                if day == nil {
-                    seedDay = DateUtil.nextOccurrence(of: time)
-                } else {
+            let today = Calendar.current.startOfDay(for: Date())
+            if let day {
+                // A picked day stays; a seeded time that already passed on it moves ahead.
+                if DateUtil.combine(day: day, timeOfDay: time) <= Date() {
                     time = Date().addingTimeInterval(3600)
                 }
+                selectedDays = [Calendar.current.startOfDay(for: day)]
+            } else if DateUtil.combine(day: today, timeOfDay: time) <= Date() {
+                // No picked day and the time already passed today: the alarm
+                // starts at the time's next occurrence and follows the wheel.
+                dayFollowsTime = true
+            } else {
+                selectedDays = [today]
             }
             timeOfDay = time
-            selectedDays = [Calendar.current.startOfDay(for: seedDay)]
-            monthCursor = seedDay
+            followTime()
+            monthCursor = sortedDays.first ?? today
             soundName = AlarmDefaults.soundName
         }
     }

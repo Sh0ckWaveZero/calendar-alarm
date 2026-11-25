@@ -59,7 +59,7 @@ iPhone Duo open (inner display). Month and Week put the calendar beside the alar
 - **Calendar views** — List / Month / Week modes with swipe navigation. Days with alarms show an orange dot. Month and Week list every alarm in the visible month or week, grouped by day; tapping a day scrolls to its alarms.
 - **Thai holidays** — red dots + a holiday list for the selected day. Holidays come from the device's holiday calendars (EventKit) and fall back to Google's public Thai holidays ICS feed when none exist. Tap a holiday to set an alarm for that day.
 - **Alarm sounds** — three bundled sounds (Chime / Beep / Rise) plus the ringtones and alert tones that ship with iOS, with tap-to-preview. Pick one per alarm.
-- **Defaults for new alarms** — Settings holds a default sound and an optional default time-of-day. Both can still be changed per alarm; Siri-created alarms use the default sound.
+- **Defaults for new alarms** — Settings holds a default sound and an optional default time-of-day. Both can still be changed per alarm; Siri-created alarms use the default sound. A default time that already passed today starts a new alarm on tomorrow; turning the wheel to a time still ahead today moves it to today.
 - **Theme** — System / Light / Dark.
 - **Language** — English / Thai, switchable in-app (month and weekday names included).
 - **Add button position** — left or right, your choice.
